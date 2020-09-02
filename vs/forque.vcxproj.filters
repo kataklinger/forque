@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="inc">
+      <UniqueIdentifier>{da141ad3-ea03-4b1c-8449-5eb53345bbce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib">
+      <UniqueIdentifier>{9f9ee486-3453-4510-97ea-167583ff0734}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\inc\mutex.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\inc\task.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\inc\sdefs.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\inc\sync_wait.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\inc\sink.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\inc\key.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\inc\forque.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\lib\mutex.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
