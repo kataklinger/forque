@@ -11,35 +11,26 @@ namespace frq {
 template<typename Ty>
 concept static_keylike = requires(Ty k) {
   typename Ty::size_type;
+  typename Ty::pack_type;
 
   requires std::same_as<decltype(Ty::depth), typename Ty::size_type const>;
+
   {
-    k.hash(std::integral_constant<typename Ty::size_type,
-                                  typename Ty::size_type{}>{})
-  }
-  noexcept->std::same_as<std::size_t>;
-  {
-    k.equal(std::declval<Ty>(),
-            std::integral_constant<typename Ty::size_type,
+    k.value(std::integral_constant<typename Ty::size_type,
                                    typename Ty::size_type{}>{})
   }
-  noexcept->std::convertible_to<bool>;
+  noexcept; // todo: ensure not void
 };
 
 template<typename Ty>
 concept dynamic_keylike = requires(Ty k) {
   typename Ty::size_type;
 
-  {
-    typename Ty::size_type {
-      k.depth()
-    }
-  }
-  noexcept;
-  { k.hash(typename Ty::size_type{}) }
-  noexcept->std::same_as<std::size_t>;
-  { k.equal(std::declval<Ty&&>(), typename Ty::size_type{}) }
-  noexcept->std::convertible_to<bool>;
+  { k.depth() }
+  noexcept->std::same_as<typename Ty::size_type>;
+
+  { k.node(typename Ty::size_type{}) }
+  noexcept; // todo: ensure not void
 };
 
 struct construct_key_default_t {};
@@ -51,12 +42,10 @@ constexpr construct_key_alloc_t construct_key_alloc{};
 struct construct_key_hash_cmp_t {};
 constexpr construct_key_hash_cmp_t construct_key_hash_cmp{};
 
-template<typename HashCmp, typename... Tys>
+template<typename... Tys>
 class static_key {
 public:
   using size_type = std::uint8_t;
-  using hash_compare_type = HashCmp;
-
   using pack_type = std::tuple<Tys...>;
 
   static constexpr size_type depth =
@@ -65,43 +54,21 @@ public:
 public:
   template<typename... Txs>
   constexpr inline static_key(construct_key_default_t /*unused*/, Txs&&... args)
-      : hash_cmp_{}
-      , values_{std::forward<Txs>(args)...} {
+      : values_{std::forward<Txs>(args)...} {
   }
 
-  template<typename... Txs>
-  constexpr inline static_key(construct_key_hash_cmp_t /*unused*/,
-                              hash_compare_type const& hash_cmp,
-                              Txs&&... args)
-      : hash_cmp_{hash_cmp}
-      , values_{std::forward<Txs>(args)...} {
+  constexpr inline static_key(pack_type const& values)
+      : values_{values} {
   }
 
-  constexpr inline static_key(
-      pack_type const& values,
-      hash_compare_type const& hash_cmp = hash_compare_type{})
-      : hash_cmp_{hash_cmp}
-      , values_{values} {
-  }
-
-  constexpr inline static_key(
-      pack_type&& values,
-      hash_compare_type const& hash_cmp = hash_compare_type{})
-      : hash_cmp_{hash_cmp}
-      , values_{std::move(values)} {
+  constexpr inline static_key(pack_type&& values)
+      : values_{std::move(values)} {
   }
 
   template<size_type Level>
-  constexpr inline std::size_t
-      hash(std::integral_constant<size_type, Level>) const noexcept {
-    return hash_cmp_.hash(get<Level>(values_));
-  }
-
-  template<size_type Level>
-  constexpr inline bool
-      equal(static_key const& other,
-            std::integral_constant<size_type, Level>) const noexcept {
-    return hash_cmp_.equal_to(get<Level>(values_), get<Level>(other.values_));
+  constexpr inline auto&&
+      value(std::integral_constant<size_type, Level>) const noexcept {
+    return get<static_cast<std::size_t>(Level)>(values_);
   }
 
   pack_type const& values() const noexcept {
@@ -109,9 +76,12 @@ public:
   }
 
 private:
-  [[no_unique_address]] hash_compare_type hash_cmp_;
   pack_type values_;
 };
+
+template<static_keylike Ty, typename Ty::size_type Idx>
+using static_key_value_t =
+    std::tuple_element_t<static_cast<std::size_t>(Idx), typename Ty::pack_type>;
 
 class dynamic_key_node {
 public:
@@ -121,6 +91,8 @@ public:
   virtual std::size_t hash() const noexcept = 0;
   virtual bool equal(dynamic_key_node const& other) const noexcept = 0;
 };
+
+using dynamic_key_node_pointer = std::shared_ptr<dynamic_key_node>;
 
 namespace detail {
   template<typename Ty>
@@ -167,42 +139,6 @@ namespace detail {
   template<typename Ty, typename HashCmp>
   using dynamic_key_node_t = dynamic_key_node_impl<std::decay_t<Ty>, HashCmp>;
 
-  template<typename Node, typename Alloc, typename HashCmp, typename... Tys>
-  inline Node* construct_dynamic_key_node(Alloc&& alloc,
-                                          HashCmp const& hash_cmp,
-                                          std::true_type /*unused*/,
-                                          Tys&&... args) {
-    auto storage{alloc.allocate(1)};
-    alloc.construct(storage, std::forward<Tys>(args)..., hash_cmp);
-    return storage;
-  }
-
-  template<typename Node, typename Alloc, typename HashCmp, typename... Tys>
-  Node* construct_dynamic_key_node(Alloc&& alloc,
-                                   HashCmp const& hash_cmp,
-                                   std::false_type /*unused*/,
-                                   Tys&&... args) {
-    struct construct_storage {
-      Alloc& alloc_;
-      Node* buffer_;
-
-      inline ~construct_storage() {
-        if (buffer_ != nullptr) {
-          alloc_.deallocate(buffer_, 1);
-        }
-      }
-
-      inline Node* release() noexcept {
-        return std::exchange(buffer_, nullptr);
-      }
-    };
-
-    construct_storage storage{alloc, alloc.allocate(1)};
-    std::allocator_traits<std::decay_t<Alloc>>::construct(
-        alloc, storage.buffer_, hash_cmp, std::forward<Tys>(args)...);
-    return storage.release();
-  }
-
   template<typename... Tys>
   struct type_list {};
 
@@ -216,52 +152,13 @@ namespace detail {
   }
 } // namespace detail
 
-template<typename Alloc>
-class dynamic_key_node_deleter {
-public:
-  using allocator_type = Alloc;
-  using delete_fn = void (*)(Alloc& alloc, dynamic_key_node* ptr);
-
-public:
-  dynamic_key_node_deleter(allocator_type const& alloc, delete_fn del)
-      : alloc_{alloc}
-      , del_{del} {
-  }
-
-  inline void operator()(dynamic_key_node* ptr) {
-    del_(alloc_, ptr);
-  }
-
-private:
-  [[no_unique_address]] allocator_type alloc_;
-  delete_fn del_;
-};
-
-template<typename Alloc>
-using dynamic_key_node_pointer =
-    std::unique_ptr<dynamic_key_node, dynamic_key_node_deleter<Alloc>>;
-
 template<typename Ty, typename Alloc, typename HashCmp, typename... Tys>
-auto make_dynamic_key_node(Alloc const& alloc,
-                           HashCmp const& hash_cmp,
-                           Tys&&... args) {
+dynamic_key_node_pointer make_dynamic_key_node(Alloc const& alloc,
+                                               HashCmp const& hash_cmp,
+                                               Tys&&... args) {
   using node_type = detail::dynamic_key_node_t<Ty, HashCmp>;
-  using node_alloc_t =
-      typename std::allocator_traits<Alloc>::template rebind_alloc<node_type>;
-
-  auto node = detail::construct_dynamic_key_node<node_type>(
-      node_alloc_t{alloc},
-      hash_cmp,
-      std::is_nothrow_constructible<node_type, Tys...>{},
-      std::forward<Tys>(args)...);
-
-  dynamic_key_node_deleter<Alloc> deleter{
-      alloc, +[](Alloc& a, dynamic_key_node* p) {
-        p->~dynamic_key_node();
-        node_alloc_t{a}.deallocate(static_cast<node_type*>(p), 1);
-      }};
-
-  return dynamic_key_node_pointer<Alloc>{node, std::move(deleter)};
+  return std::allocate_shared<node_type>(
+      alloc, hash_cmp, std::forward<Tys>(args)...);
 }
 
 struct default_hash_compare {
@@ -295,12 +192,11 @@ public:
   using size_type = std::uint32_t;
   using allocator_type = Alloc;
 
-  using node_pointer_type = dynamic_key_node_pointer<allocator_type>;
-
 private:
   using storage_allocator_type = typename std::allocator_traits<
-      allocator_type>::template rebind_alloc<node_pointer_type>;
-  using storage_type = std::vector<node_pointer_type, storage_allocator_type>;
+      allocator_type>::template rebind_alloc<dynamic_key_node_pointer>;
+  using storage_type =
+      std::vector<dynamic_key_node_pointer, storage_allocator_type>;
 
 public:
   template<key_iterator Iter>
@@ -353,16 +249,9 @@ public:
     return static_cast<size_type>(values_.size());
   }
 
-  inline std::size_t hash(size_type level) noexcept {
+  inline dynamic_key_node_pointer node(size_type level) const noexcept {
     assert(level < values_.size());
-    return values_[level]->hash();
-  }
-
-  inline bool equal(const dynamic_key& other, size_type level) noexcept {
-    assert(level < values_.size());
-    assert(level < other.values_.size());
-
-    return values_[level]->equal(*other.values_[level]);
+    return values_[level];
   }
 
   template<typename... Tys>
@@ -390,6 +279,28 @@ struct static_level {
 
 struct dynamic_level {};
 
+struct dynamic_key_value {
+public:
+  explicit inline dynamic_key_value(dynamic_key_node_pointer const& key_node)
+      : key_node_{key_node} {
+  }
+
+  inline std::size_t hash() const noexcept {
+    return key_node_->hash();
+  }
+
+  inline bool operator==(dynamic_key_value const& rhs) const noexcept {
+    return key_node_->equal(*rhs.key_node_);
+  }
+
+  inline bool operator!=(dynamic_key_value const& rhs) const noexcept {
+    return !(*this == rhs);
+  }
+
+private:
+  dynamic_key_node_pointer key_node_;
+};
+
 template<typename Key, typename TLevel>
 class key_view;
 
@@ -398,8 +309,6 @@ class key_view<Key, dynamic_level> {
 public:
   using key_type = Key;
   using size_type = typename key_type::size_type;
-
-  using pointer_type = std::shared_ptr<key_type>;
 
   using next_type = key_view<key_type, dynamic_level>;
 
@@ -410,16 +319,16 @@ public:
       , depth_{static_cast<size_type>(0)} {
   }
 
-  explicit inline key_view(pointer_type const& key, size_type current = 0U)
-      : key_{key}
+  explicit inline key_view(key_type const& key, size_type current = 0U)
+      : key_{&key}
       , current_{current}
-      , depth_{key->depth()} {
+      , depth_{key.depth()} {
     assert(current_ < depth_);
   }
 
   inline key_view next() const noexcept {
     assert(current_ + 1 < depth_);
-    return key_view{key_, current_ + 1};
+    return key_view{*key_, current_ + 1};
   }
 
   inline bool is_last() const noexcept {
@@ -434,27 +343,12 @@ public:
     return depth_;
   }
 
-  inline std::size_t hash() const noexcept {
-    return key_->hash(current_);
-  }
-
-  inline bool equal(key_view const& other) const noexcept {
-    return current_ == other.current_ && key_->equal(*other.key_, current_);
-  }
-
-  inline void swap(key_view& other) noexcept {
-    using std::swap;
-    swap(key_, other.key_);
-    swap(current_, other.current_);
-    swap(depth_, other.depth_);
-  }
-
-  inline bool is_empty() const noexcept {
-    return key_ == nullptr;
+  inline dynamic_key_value value() const noexcept {
+    return dynamic_key_value{key_->node(current_)};
   }
 
 private:
-  pointer_type key_;
+  key_type const* key_;
   size_type current_;
   size_type depth_;
 };
@@ -479,18 +373,17 @@ class key_view<Key, static_level<typename Key::size_type, Current, Depth>> {
 public:
   using key_type = Key;
   using size_type = typename key_type::size_type;
-
-  using pointer_type = std::shared_ptr<key_type>;
+  using value_type = static_key_value_t<key_type, Current>;
 
   using next_type = key_view<key_type, next_level_t<size_type, Current, Depth>>;
 
 public:
-  explicit inline key_view(pointer_type const& key)
-      : key_{key} {
+  explicit inline key_view(key_type const& key)
+      : key_{&key} {
   }
 
   constexpr inline next_type next() const noexcept {
-    return next_type{key_};
+    return next_type{*key_};
   }
 
   constexpr inline bool is_last() const noexcept {
@@ -505,26 +398,13 @@ public:
     return Depth;
   }
 
-  inline std::size_t hash() const noexcept {
-    return key_->hash(std::integral_constant<size_type, Current>{});
-  }
-
-  inline bool equal(key_view const& other) const noexcept {
-    return key_->equal(*other.key_,
-                       std::integral_constant<size_type, Current>{});
-  }
-
-  inline bool is_empty() const noexcept {
-    return key_ == nullptr;
-  }
-
-  inline void swap(key_view& other) noexcept {
-    using std::swap;
-    swap(key_, other.key_);
+  inline value_type const& value() const
+      noexcept(std::is_nothrow_constructible_v<value_type>) {
+    return key_->value(std::integral_constant<size_type, Current>{});
   }
 
 private:
-  pointer_type key_;
+  key_type const* key_;
 };
 
 template<static_keylike Key,
@@ -550,3 +430,12 @@ struct key_view_equal_to {
 };
 
 } // namespace frq
+
+namespace std {
+template<>
+struct hash<frq::dynamic_key_value> {
+  inline size_t operator()(frq::dynamic_key_value const& value) const noexcept {
+    return value.hash();
+  }
+};
+} // namespace std

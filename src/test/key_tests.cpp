@@ -5,6 +5,23 @@
 
 #include "gtest/gtest.h"
 
+namespace std {
+template<>
+struct hash<counted> {
+  inline size_t operator()(counted const& /*unused*/) const noexcept {
+    return 0;
+  }
+};
+
+template<>
+struct equal_to<counted> {
+  inline bool operator()(counted const& /*unused*/,
+                         counted const& /*unused*/) const noexcept {
+    return true;
+  }
+};
+} // namespace std
+
 struct custom_hash_compare {
   template<typename Ty>
   inline std::size_t hash(Ty const& value) const noexcept {
@@ -21,25 +38,8 @@ struct custom_hash_compare {
   bool initialized{false};
 };
 
-namespace std {
-template<>
-struct hash<counted> {
-  inline std::size_t operator()(counted const& /*unused*/) const noexcept {
-    return 0;
-  }
-};
-
-template<>
-struct equal_to<counted> {
-  inline bool operator()(counted const& /*unused*/,
-                         counted const& /*unused*/) const noexcept {
-    return true;
-  }
-};
-} // namespace std
-
 template<typename... Tys>
-using default_static_key = frq::static_key<frq::default_hash_compare, Tys...>;
+using default_static_key = frq::static_key<Tys...>;
 
 static_assert(default_static_key<counted, int>::depth == 2);
 
@@ -124,7 +124,7 @@ TEST(static_key_constructor_tests, copy_construct) {
   EXPECT_EQ(0, counted::get_instances());
 }
 
-class static_key_default_hash_cmp_tests : public testing::Test {
+class static_key_tests : public testing::Test {
 protected:
   using key_type = default_static_key<int, float>;
 
@@ -138,73 +138,20 @@ protected:
   using index1_type = std::integral_constant<key_type::size_type, 1>;
 };
 
-TEST_F(static_key_default_hash_cmp_tests, hash) {
-  EXPECT_EQ(std::hash<int>{}(1), key1_.hash(index0_type{}));
-  EXPECT_EQ(std::hash<float>{}(1.0f), key1_.hash(index1_type{}));
-}
-
-TEST_F(static_key_default_hash_cmp_tests, equal) {
-  EXPECT_TRUE(key1_.equal(key1_, index0_type{}));
-  EXPECT_TRUE(key1_.equal(key1_, index1_type{}));
-}
-
-TEST_F(static_key_default_hash_cmp_tests, not_equal) {
-  EXPECT_FALSE(key1_.equal(key2_, index0_type{}));
-  EXPECT_FALSE(key1_.equal(key2_, index1_type{}));
-}
-
-class static_key_custom_hash_cmp_tests : public testing::Test {
-protected:
-  using key_type = frq::static_key<custom_hash_compare, int, float>;
-
-  void SetUp() override {
-  }
-
-  key_type key1_{frq::construct_key_hash_cmp,
-                 custom_hash_compare{true},
-                 1,
-                 1.0F};
-  key_type key2_{frq::construct_key_hash_cmp,
-                 custom_hash_compare{true},
-                 2,
-                 2.0F};
-
-  using index0_type = std::integral_constant<key_type::size_type, 0>;
-  using index1_type = std::integral_constant<key_type::size_type, 1>;
-};
-
-TEST_F(static_key_custom_hash_cmp_tests, hash) {
-  EXPECT_EQ(std::hash<int>{}(1), key1_.hash(index0_type{}));
-  EXPECT_EQ(std::hash<float>{}(1.0f), key1_.hash(index1_type{}));
-}
-
-TEST_F(static_key_custom_hash_cmp_tests, equal) {
-  EXPECT_TRUE(key1_.equal(key1_, index0_type{}));
-  EXPECT_TRUE(key1_.equal(key1_, index1_type{}));
-}
-
-TEST_F(static_key_custom_hash_cmp_tests, not_equal) {
-  EXPECT_FALSE(key1_.equal(key2_, index0_type{}));
-  EXPECT_FALSE(key1_.equal(key2_, index1_type{}));
+TEST_F(static_key_tests, value) {
+  EXPECT_EQ(1, key1_.value(index0_type{}));
+  EXPECT_EQ(1.0F, key1_.value(index1_type{}));
 }
 
 class static_key_view_tests : public testing::Test {
 protected:
   using key_type = default_static_key<counted, int, float>;
 
-  std::shared_ptr<key_type> make_key(int data) {
-    return std::make_shared<key_type>(frq::construct_key_default,
-                                      counter_.instance(),
-                                      data,
-                                      static_cast<float>(data));
-  }
-
   void SetUp() override {
-    key_ = make_key(1);
   }
 
   counted_guard counter_;
-  std::shared_ptr<key_type> key_;
+  key_type key_{frq::construct_key_default, counter_.instance(), 1, 1.0F};
 };
 
 TEST_F(static_key_view_tests, constants) {
@@ -249,83 +196,48 @@ TEST_F(static_key_view_tests, next_from_last) {
   EXPECT_EQ(2, view_next.current());
 }
 
-TEST_F(static_key_view_tests, key_ownership) {
-  {
-    frq::static_key_view_t<key_type, 0> view{key_};
-    key_ = nullptr;
-
-    EXPECT_EQ(1, counted::get_instances());
-  }
-
-  EXPECT_EQ(0, counted::get_instances());
-}
-
-TEST_F(static_key_view_tests, is_empty) {
-  frq::static_key_view_t<key_type, 2> view{nullptr};
-
-  EXPECT_TRUE(view.is_empty());
-}
-
-TEST_F(static_key_view_tests, hash) {
-  frq::static_key_view_t<key_type, 1> view{key_};
-
-  EXPECT_EQ(std::hash<int>{}(1), view.hash());
-}
-
-TEST_F(static_key_view_tests, swap) {
-  frq::static_key_view_t<key_type, 2> view1{key_};
-  frq::static_key_view_t<key_type, 2> view2{nullptr};
-
-  view1.swap(view2);
-
-  EXPECT_TRUE(view1.is_empty());
-  EXPECT_FALSE(view2.is_empty());
-}
-
-TEST_F(static_key_view_tests, key_view_hash) {
-  frq::static_key_view_t<key_type, 2> view{key_};
-  EXPECT_EQ(std::hash<float>{}(1.0F), frq::key_view_hash{}(view));
-}
-
-TEST_F(static_key_view_tests, key_view_equal_to) {
-  frq::static_key_view_t<key_type, 2> view{key_};
-  EXPECT_TRUE(frq::key_view_equal_to{}(view, view));
-}
-
-TEST_F(static_key_view_tests, equal) {
+TEST_F(static_key_view_tests, value) {
   frq::static_key_view_t<key_type, 2> view{key_};
 
-  EXPECT_TRUE(view.equal(view));
+  EXPECT_EQ(1.0F, view.value());
 }
 
-class static_key_view_multiple_tests : public static_key_view_tests {
-protected:
-  void SetUp() override {
-    static_key_view_tests::SetUp();
-    key2_ = make_key(2);
-  }
-
-  std::shared_ptr<key_type> key2_;
-};
-
-TEST_F(static_key_view_multiple_tests, not_equal) {
-  frq::static_key_view_t<key_type, 2> view1{key_};
-  frq::static_key_view_t<key_type, 2> view2{key2_};
-
-  EXPECT_FALSE(view1.equal(view2));
-}
-
-TEST(make_dynamic_key_node_tests, construct) {
+TEST(dynamic_key_node_make_tests, construct) {
   counted_guard guard{};
   {
     auto node = frq::make_dynamic_key_node<counted>(
-        std::allocator<counted>{}, custom_hash_compare{}, guard.instance());
+        std::allocator<counted>{}, custom_hash_compare{true}, guard.instance());
 
     EXPECT_EQ(1, counted::get_instances());
     EXPECT_EQ(0, counted::get_copies());
     EXPECT_EQ(1, counted::get_moves());
   }
   EXPECT_EQ(0, counted::get_instances());
+}
+
+class dynamic_key_node_tests : public testing::Test {
+protected:
+  void SetUp() override {
+    node_ = frq::make_dynamic_key_node<int>(
+        std::allocator<int>{}, custom_hash_compare{true}, 1);
+  }
+
+  frq::dynamic_key_node_pointer node_;
+};
+
+TEST_F(dynamic_key_node_tests, hash) {
+  EXPECT_EQ(std::hash<int>{}(1), node_->hash());
+}
+
+TEST_F(dynamic_key_node_tests, equal) {
+  EXPECT_TRUE(node_->equal(*node_));
+}
+
+TEST_F(dynamic_key_node_tests, not_equal) {
+  auto other = frq::make_dynamic_key_node<int>(
+      std::allocator<int>{}, custom_hash_compare{true}, 2);
+
+  EXPECT_FALSE(node_->equal(*other));
 }
 
 TEST(dynamic_key_constructor_tests, direct_move_construct) {
@@ -360,7 +272,7 @@ TEST(dynamic_key_constructor_tests, direct_hash_construct) {
                          guard.instance(),
                          1};
 
-  EXPECT_EQ(std::hash<int>{}(1), key.hash(1));
+  EXPECT_EQ(std::hash<int>{}(1), key.node(1)->hash());
 }
 
 TEST(dynamic_key_constructor_tests, direct_alloc_construct) {
@@ -376,17 +288,15 @@ TEST(dynamic_key_constructor_tests, direct_alloc_construct) {
 TEST(dynamic_key_constructor_tests, range_construct) {
   counted_guard guard{};
 
-  std::vector<
-      frq::dynamic_key_node_pointer<std::allocator<frq::dynamic_key_node>>>
-      nodes{};
+  std::vector<frq::dynamic_key_node_pointer> nodes{};
 
   nodes.push_back(frq::make_dynamic_key_node<counted>(
       std::allocator<frq::dynamic_key_node>{},
-      custom_hash_compare{},
+      custom_hash_compare{true},
       guard.instance()));
 
   nodes.push_back(frq::make_dynamic_key_node<int>(
-      std::allocator<frq::dynamic_key_node>{}, custom_hash_compare{}, 1));
+      std::allocator<frq::dynamic_key_node>{}, custom_hash_compare{true}, 1));
 
   frq::dynamic_key<> key{std::begin(nodes), std::end(nodes)};
 
@@ -418,24 +328,8 @@ TEST_F(dynamic_key_tests, get_values_mimatched_types) {
   EXPECT_THROW(wrapper(), std::bad_cast);
 }
 
-TEST_F(dynamic_key_tests, hash) {
-  EXPECT_EQ(std::hash<float>{}(1.0F), key_.hash(1U));
-}
-
-TEST_F(dynamic_key_tests, equal) {
-  EXPECT_TRUE(key_.equal(key_, 0U));
-}
-
-TEST_F(dynamic_key_tests, equal_same_type) {
-  frq::dynamic_key<> other{frq::construct_key_default, 2, 2.0F};
-
-  EXPECT_FALSE(key_.equal(other, 1U));
-}
-
-TEST_F(dynamic_key_tests, equal_different_type) {
-  frq::dynamic_key<> other{frq::construct_key_default, 2, 2};
-
-  EXPECT_FALSE(key_.equal(other, 1U));
+TEST_F(dynamic_key_tests, node) {
+  EXPECT_EQ(key_.node(1), key_.node(1));
 }
 
 class dynamic_key_view_tests : public testing::Test {
@@ -443,10 +337,9 @@ protected:
   using key_type = frq::dynamic_key<>;
 
   void SetUp() override {
-    key_ = std::make_shared<key_type>(frq::construct_key_default, 1, 1.0F);
   }
 
-  std::shared_ptr<key_type> key_;
+  key_type key_{frq::construct_key_default, 1, 1.0F};
 };
 
 TEST_F(dynamic_key_view_tests, state_first) {
@@ -476,40 +369,49 @@ TEST_F(dynamic_key_view_tests, next) {
   EXPECT_EQ(1U, next.current());
 }
 
-TEST_F(dynamic_key_view_tests, hash) {
+TEST_F(dynamic_key_view_tests, value) {
   frq::dynamic_key_view_t<key_type> view{key_, 0U};
 
-  EXPECT_EQ(std::hash<int>{}(1), view.hash());
+  EXPECT_EQ(view.value(), view.value());
 }
 
-TEST_F(dynamic_key_view_tests, equal) {
-  frq::dynamic_key_view_t<key_type> view{key_, 0U};
+TEST(dynamic_key_value_ownership_tests, keep_ownership) {
+  using key_type = frq::dynamic_key<>;
+  counted_guard guard{};
 
-  EXPECT_TRUE(view.equal(view));
+  std::unique_ptr<key_type> key =
+      std::make_unique<key_type>(frq::construct_key_default, guard.instance());
+
+  {
+    auto value{frq::dynamic_key_view_t<key_type>{*key, 0U}.value()};
+    key.reset();
+
+    EXPECT_EQ(1, counted::get_instances());
+  }
+
+  EXPECT_EQ(0, counted::get_instances());
 }
 
-TEST_F(dynamic_key_view_tests, not_equal) {
-  frq::dynamic_key_view_t<key_type> view1{key_, 0U};
-  frq::dynamic_key_view_t<key_type> view2{key_, 1U};
+class dynamic_key_value_tests : public testing::Test {
+protected:
+  void SetUp() override {
+  }
 
-  EXPECT_FALSE(view1.equal(view2));
+  frq::dynamic_key<> key_{frq::construct_key_default, 1, 1.0F};
+
+  frq::dynamic_key_view_t<frq::dynamic_key<>> view1_{key_, 0U};
+  frq::dynamic_key_view_t<frq::dynamic_key<>> view2_{key_, 1U};
+};
+
+TEST_F(dynamic_key_value_tests, hash) {
+  auto value = view1_.value();
+  EXPECT_EQ(std::hash<int>{}(1), std::hash<decltype(value)>{}(value));
 }
 
-TEST_F(dynamic_key_view_tests, is_empty) {
-  frq::dynamic_key_view_t<key_type> view{};
-
-  EXPECT_TRUE(view.is_empty());
+TEST_F(dynamic_key_value_tests, equal) {
+  EXPECT_TRUE(view1_.value() == view1_.value());
 }
 
-TEST_F(dynamic_key_view_tests, swap) {
-  frq::dynamic_key_view_t<key_type> view1{key_, 0U};
-  frq::dynamic_key_view_t<key_type> view2{};
-
-  view1.swap(view2);
-
-  EXPECT_TRUE(view1.is_empty());
-  EXPECT_EQ(0U, view1.depth());
-
-  EXPECT_FALSE(view2.is_empty());
-  EXPECT_EQ(2U, view2.depth());
+TEST_F(dynamic_key_value_tests, not_equal) {
+  EXPECT_FALSE(view1_.value() == view2_.value());
 }
