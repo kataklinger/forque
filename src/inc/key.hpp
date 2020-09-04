@@ -8,6 +8,9 @@
 
 namespace frq {
 
+template<typename Ty, typename Tx>
+concept different_then = !std::is_same_v<Ty, Tx>;
+
 template<typename Ty>
 concept static_keylike = requires(Ty k) {
   typename Ty::size_type;
@@ -19,7 +22,7 @@ concept static_keylike = requires(Ty k) {
     k.value(std::integral_constant<typename Ty::size_type,
                                    typename Ty::size_type{}>{})
   }
-  noexcept; // todo: ensure not void
+  noexcept->different_then<void>;
 };
 
 template<typename Ty>
@@ -30,7 +33,7 @@ concept dynamic_keylike = requires(Ty k) {
   noexcept->std::same_as<typename Ty::size_type>;
 
   { k.node(typename Ty::size_type{}) }
-  noexcept; // todo: ensure not void
+  noexcept->different_then<void>;
 };
 
 struct construct_key_default_t {};
