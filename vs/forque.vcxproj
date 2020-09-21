@@ -12,12 +12,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\inc\forque.hpp" />
-    <ClInclude Include="..\src\inc\key.hpp" />
+    <ClInclude Include="..\src\inc\tag.hpp" />
     <ClInclude Include="..\src\inc\mutex.hpp" />
     <ClInclude Include="..\src\inc\sink.hpp" />
     <ClInclude Include="..\src\inc\sdefs.hpp" />
     <ClInclude Include="..\src\inc\sync_wait.hpp" />
     <ClInclude Include="..\src\inc\task.hpp" />
+    <ClInclude Include="..\src\inc\utility.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\lib\mutex.cpp" />

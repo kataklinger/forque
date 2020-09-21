@@ -141,6 +141,10 @@ class mutex_guard {
   friend mutex::scoped_awaitable;
 
 public:
+  inline mutex_guard() noexcept
+      : lock_{nullptr} {
+  }
+
   inline mutex_guard(mutex& lock, std::adopt_lock_t /*unused*/) noexcept
       : mutex_guard{lock.impl_} {
   }

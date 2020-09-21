@@ -24,10 +24,13 @@
     <ClInclude Include="..\src\inc\sink.hpp">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\inc\key.hpp">
+    <ClInclude Include="..\src\inc\forque.hpp">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\inc\forque.hpp">
+    <ClInclude Include="..\src\inc\tag.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\inc\utility.hpp">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>

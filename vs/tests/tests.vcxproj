@@ -36,7 +36,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\test\key_tests.cpp" />
+    <ClCompile Include="..\..\src\test\tag_tests.cpp" />
     <ClCompile Include="..\..\src\test\sink_queue_tests.cpp" />
     <ClCompile Include="..\..\src\test\sync_wait_tests.cpp" />
     <ClCompile Include="..\..\src\test\task_tests.cpp" />
