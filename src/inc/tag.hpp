@@ -144,12 +144,12 @@ namespace detail {
                        type_list<Tys...> /*unused,*/,
                        std::integer_sequence<Size, Idxs...> /*unused*/) {
     return std::tuple<Tys...>{
-        dynamic_cast<dtag_node_typed<Tys> const&>(*values[Idxs].get())
+        dynamic_cast<dtag_node_typed<Tys> const&>(values[Idxs].node())
             .value()...};
   }
 } // namespace detail
 
-struct dtag_value {
+class dtag_value {
 public:
   explicit inline dtag_value(dtag_node_ptr const& tag_node)
       : tag_node_{tag_node} {
@@ -157,6 +157,10 @@ public:
 
   explicit inline dtag_value(dtag_node_ptr&& tag_node)
       : tag_node_{std::move(tag_node)} {
+  }
+
+  inline dtag_node_ptr::element_type const& node() const {
+    return *tag_node_;
   }
 
   inline std::size_t hash() const noexcept {
@@ -452,7 +456,7 @@ public:
   }
 
   inline key_type key() const noexcept {
-    return *tag_->values().back();
+    return tag_->values()[level_];
   }
 
   inline sub_type sub() const {
