@@ -39,7 +39,7 @@ concept taglike = requires(Ty t) {
 
   {std::size_t{typename Ty::size_type{}}};
 
-  { t.value() }
+  { t.values() }
   noexcept->std::convertible_to<typename Ty::storage_type>;
 };
 
@@ -347,10 +347,10 @@ namespace detail {
   };
 
   template<taglike Tag, typename Tag::size_type Sub>
-  using sub_tag_t = sub_tag<Tag, Sub>;
+  using sub_tag_t = typename sub_tag<Tag, Sub>::type;
 
-  template<std::uint8_t Size,
-           std::uint8_t Sub,
+  template<std::uint8_t Sub,
+           std::uint8_t Size,
            typename... Tys,
            std::uint8_t... Idxs>
   inline auto
@@ -361,10 +361,11 @@ namespace detail {
     return sub_type{construct_tag_default, std::get<Idxs>(values)...};
   }
 
-  template<std::uint8_t Size, std::uint8_t Sub, typename... Tys>
+  template<std::uint8_t Sub, std::uint8_t Size, typename... Tys>
   auto sub(stag<Size, Tys...> const& tag) {
     static_assert(Sub <= Size);
-    return sub_helper(tag, std::make_integer_sequence<std::uint8_t, Sub>{});
+    return sub_helper<Sub>(tag,
+                           std::make_integer_sequence<std::uint8_t, Sub>{});
   }
 
   template<typename Tag>
@@ -404,10 +405,10 @@ class stag_view {
 public:
   using tag_type = Tag;
   using key_type = std::tuple_element_t<Level, typename tag_type::storage_type>;
-  using sub_type = detail::sub_tag_t<tag_type, Level>;
-  using next_type = std::conditional<Level == Tag::size - 1,
-                                     stag_view<tag_type, Level>,
-                                     stag_view<tag_type, Level + 1>>;
+  using sub_type = detail::sub_tag_t<tag_type, Level + 1>;
+  using next_type = std::conditional_t<(Level < Tag::size - 1),
+                                       stag_view<tag_type, Level + 1>,
+                                       stag_view<tag_type, Level>>;
 
 public:
   stag_view(tag_type const& tag)
@@ -420,7 +421,7 @@ public:
 
   inline sub_type sub() const
       noexcept(detail::is_tag_nothrow_copyable_v<sub_type>) {
-    return detail::sub(*tag_);
+    return detail::sub<Level + 1>(*tag_);
   }
 
   inline next_type next() const noexcept {
@@ -441,7 +442,7 @@ public:
   using tag_type = Tag;
   using key_type = dtag_value;
   using sub_type = tag_type;
-  using next_type = tag_type;
+  using next_type = dtag_view<tag_type>;
   using size_type = typename tag_type::size_type;
 
 public:
