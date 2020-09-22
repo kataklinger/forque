@@ -21,15 +21,15 @@ constexpr construct_tag_hash_cmp_t construct_tag_hash_cmp{};
 
 namespace detail {
   template<typename Tuple, typename Seq>
-  class stag_helper;
+  struct stag_helper;
 
   template<typename Tuple, std::uint8_t... Idxs>
-  class stag_helper<Tuple, std::integer_sequence<std::uint8_t, Idxs...>> {
+  struct stag_helper<Tuple, std::integer_sequence<std::uint8_t, Idxs...>> {
     using type = std::tuple<std::tuple_element_t<Idxs, Tuple>...>;
   };
 
   template<typename Tuple, typename Seq>
-  using stag_helper_t = stag_helper<Tuple, Seq>::type;
+  using stag_helper_t = typename stag_helper<Tuple, Seq>::type;
 } // namespace detail
 
 template<typename Ty>
@@ -52,9 +52,6 @@ public:
   using storage_type =
       detail::stag_helper_t<std::tuple<Tys...>,
                             std::make_integer_sequence<size_type, Size>>;
-
-  using next_level_type = std::
-      conditional<(Size < (sizeof...(Tys))), stag<Size + 1, Tys...>, tag_end>;
 
   static constexpr size_type size = Size;
 
@@ -79,6 +76,9 @@ public:
 private:
   storage_type values_;
 };
+
+template<typename... Tys>
+using stag_t = stag<static_cast<std::uint8_t>(sizeof...(Tys)), Tys...>;
 
 class dtag_node {
 public:
@@ -313,7 +313,7 @@ struct tag_prev<stag<Size, Tys...>> {
 };
 
 template<typename Tag>
-using tag_prev_t = typename tag_prev_t<Tag>::type;
+using tag_prev_t = typename tag_prev<Tag>::type;
 
 template<typename Tag>
 struct tag_key;
@@ -375,7 +375,8 @@ namespace detail {
       : std::conjunction<std::is_nothrow_copy_constructible<Tys>...> {};
 
   template<typename Tag>
-  using is_tag_nothrow_copyable_v = is_tag_nothrow_copyable<Tag>::value;
+  constexpr bool is_tag_nothrow_copyable_v =
+      is_tag_nothrow_copyable<Tag>::value;
 } // namespace detail
 
 template<typename Ty>
