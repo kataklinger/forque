@@ -14,52 +14,69 @@ namespace frq {
 template<typename Ty>
 concept sinkable = std::is_nothrow_move_constructible_v<Ty>;
 
-template<typename TQueue>
-class base_sink_queue {
-private:
-  using queue_type = TQueue;
+namespace detail {
+  template<typename Queue, typename Alloc>
+  class base_sink_queue {
+  public:
+    using queue_type = Queue;
+    using allocator_type = Alloc;
 
-public:
-  using value_type = typename queue_type::value_type;
+    using value_type = typename queue_type::value_type;
 
-protected:
-  struct popper {
-    inline ~popper() {
-      q.pop();
+  protected:
+    struct popper {
+      inline ~popper() {
+        q.pop();
+      }
+      queue_type& q;
+    };
+
+  public:
+    explicit inline base_sink_queue(
+        allocator_type const& alloc = allocator_type{}) noexcept
+        : queue_{alloc} {
     }
-    queue_type& q;
+
+    base_sink_queue(base_sink_queue const&) = delete;
+    base_sink_queue(base_sink_queue&&) = delete;
+
+    base_sink_queue& operator=(base_sink_queue const&) = delete;
+    base_sink_queue& operator=(base_sink_queue&&) = delete;
+
+    inline void push(value_type&& value) {
+      queue_.push(std::move(value));
+    }
+
+    template<typename... Tys>
+    requires(std::is_constructible_v<value_type, Tys...>) inline void push(
+        Tys&&... args) {
+      queue_.emplace(std::forward<Tys>(args)...);
+    }
+
+    inline bool empty() const noexcept {
+      return queue_.empty();
+    }
+
+  protected:
+    queue_type queue_;
   };
-
-public:
-  inline void push(value_type&& value) {
-    queue_.push(std::move(value));
-  }
-
-  template<typename... Tys>
-  requires(std::is_constructible_v<value_type, Tys...>) inline void push(
-      Tys&&... args) {
-    queue_.emplace(std::forward<Tys>(args)...);
-  }
-
-  inline bool empty() const noexcept {
-    return queue_.empty();
-  }
-
-protected:
-  queue_type queue_;
-};
+} // namespace detail
 
 template<sinkable Ty,
          typename Alloc = std::allocator<Ty>,
          typename TLess = std::less<Ty>>
 class priority_sink_queue
-    : public base_sink_queue<
-          std::priority_queue<Ty, std::vector<Ty, Alloc>, TLess>> {
+    : public detail::base_sink_queue<
+          std::priority_queue<Ty, std::vector<Ty, Alloc>, TLess>,
+          Alloc> {
 private:
-  using base_type =
-      base_sink_queue<std::priority_queue<Ty, std::vector<Ty, Alloc>, TLess>>;
+  using base_type = detail::base_sink_queue<
+      std::priority_queue<Ty, std::vector<Ty, Alloc>, TLess>,
+      Alloc>;
 
 public:
+  using base_type::base_type;
+
   inline auto pop() noexcept {
     typename base_type::popper p{this->queue_};
     return std::move(const_cast<typename base_type::value_type&>(p.q.top()));
@@ -68,11 +85,15 @@ public:
 
 template<sinkable Ty, typename Alloc = std::allocator<Ty>>
 class fifo_sink_queue
-    : public base_sink_queue<std::queue<Ty, std::deque<Ty, Alloc>>> {
+    : public detail::base_sink_queue<std::queue<Ty, std::deque<Ty, Alloc>>,
+                                     Alloc> {
 private:
-  using base_type = base_sink_queue<std::queue<Ty, std::deque<Ty, Alloc>>>;
+  using base_type =
+      detail::base_sink_queue<std::queue<Ty, std::deque<Ty, Alloc>>, Alloc>;
 
 public:
+  using base_type::base_type;
+
   inline auto pop() noexcept {
     typename base_type::popper p{this->queue_};
     return std::move(p.q.front());
@@ -81,11 +102,15 @@ public:
 
 template<sinkable Ty, typename Alloc = std::allocator<Ty>>
 class lifo_sink_queue
-    : public base_sink_queue<std::stack<Ty, std::vector<Ty, Alloc>>> {
+    : public detail::base_sink_queue<std::stack<Ty, std::vector<Ty, Alloc>>,
+                                     Alloc> {
 private:
-  using base_type = base_sink_queue<std::stack<Ty, std::vector<Ty, Alloc>>>;
+  using base_type =
+      detail::base_sink_queue<std::stack<Ty, std::vector<Ty, Alloc>>, Alloc>;
 
 public:
+  using base_type::base_type;
+
   inline auto pop() noexcept {
     typename base_type::popper p{this->queue_};
     return std::move(p.q.top());
@@ -112,6 +137,8 @@ struct coro_thread_model {};
 template<typename Ty>
 concept queuelike = requires(Ty q) {
   typename Ty::value_type;
+  typename Ty::allocator_type;
+
   requires sinkable<typename Ty::value_type>;
 
   { q.pop() }
@@ -131,19 +158,30 @@ concept sinklike = requires(Ty s) {
   {s.put(std::declval<typename Ty::value_type&&>())};
 };
 
-template<queuelike TQueue, typename TMtm>
+template<queuelike Queue, typename TMtm>
 class sink;
 
-template<queuelike TQueue>
-class sink<TQueue, single_thread_model> {
+template<queuelike Queue>
+class sink<Queue, single_thread_model> {
 private:
-  using queue_type = TQueue;
+  using queue_type = Queue;
 
 public:
   using thread_model = single_thread_model;
   using value_type = typename queue_type::value_type;
+  using allocator_type = typename queue_type::allocator_type;
 
 public:
+  inline sink(allocator_type const& alloc = allocator_type{})
+      : items_{alloc} {
+  }
+
+  sink(sink const&) = delete;
+  sink(sink&&) = delete;
+
+  sink& operator=(sink const&) = delete;
+  sink& operator=(sink&&) = delete;
+
   inline std::optional<value_type> get() noexcept {
     if (!items_.empty()) {
       return items_.pop();
@@ -227,19 +265,30 @@ namespace detail {
 
 } // namespace detail
 
-template<queuelike TQueue>
-class sink<TQueue, coro_thread_model> {
+template<queuelike Queue>
+class sink<Queue, coro_thread_model> {
 private:
-  using queue_type = TQueue;
+  using queue_type = Queue;
 
 public:
   using thread_model = coro_thread_model;
   using value_type = typename queue_type::value_type;
+  using allocator_type = typename queue_type::allocator_type;
 
 private:
   using awaitable_type = detail::sink_awaitable<value_type>;
 
 public:
+  inline sink(allocator_type const& alloc = allocator_type{})
+      : items_{alloc} {
+  }
+
+  sink(sink const&) = delete;
+  sink(sink&&) = delete;
+
+  sink& operator=(sink const&) = delete;
+  sink& operator=(sink&&) = delete;
+
   inline task<value_type> get() noexcept {
     detail::sink_awaitable<value_type> awaitable{};
 
