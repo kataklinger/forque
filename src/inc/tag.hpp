@@ -287,10 +287,29 @@ private:
   storage_type values_;
 };
 
+struct etag_value {};
+
 struct etag {
-  inline void key() const noexcept {
+  using size_type = std::uint8_t;
+  using storage_type = etag_value;
+
+  inline etag_value values() const noexcept {
+    return {};
   }
 };
+
+template<typename Tag>
+struct tag_root {
+  using type = Tag;
+};
+
+template<std::uint8_t Size, typename... Tys>
+struct tag_root<stag<Size, Tys...>> {
+  using type = stag<0, Tys...>;
+};
+
+template<typename Tag>
+using tag_root_t = typename tag_root<Tag>::type;
 
 template<typename Tag>
 struct tag_next {
@@ -325,7 +344,10 @@ struct tag_key;
 template<std::uint8_t Size, typename... Tys>
 struct tag_key<stag<Size, Tys...>> {
   static_assert(Size <= sizeof...(Tys));
-  using type = std::tuple_element_t<Size - 1, std::tuple<Tys...>>;
+  using type =
+      std::conditional_t<(Size < 1),
+                         std::tuple_element_t<Size - 1, std::tuple<Tys...>>,
+                         etag_value>;
 };
 
 template<typename Alloc>
@@ -511,4 +533,22 @@ struct hash<frq::dtag_value> {
     return value.hash();
   }
 };
+
+template<>
+struct hash<frq::etag_value> {
+  constexpr inline size_t
+      operator()(frq::etag_value const& /*unused*/) const noexcept {
+    return 0;
+  }
+};
+
+template<>
+struct equal_to<frq::etag_value> {
+  constexpr inline bool
+      operator()(frq::etag_value const& /*unused*/,
+                 frq::etag_value const& /*unused*/) const noexcept {
+    return true;
+  }
+};
+
 } // namespace std
