@@ -93,8 +93,10 @@ namespace detail {
     using next_tag_type = tag_next_t<level_tag_type>;
     using prev_tag_type = tag_prev_t<level_tag_type>;
 
-    using next_type = chain<value_type, next_tag_type, allocator_type>;
-    using prev_type = chain<value_type, prev_tag_type, allocator_type>;
+    using next_type =
+        chain<value_type, next_tag_type, sink_type, allocator_type>;
+    using prev_type =
+        chain<value_type, prev_tag_type, sink_type, allocator_type>;
 
     using sibling_type = std::optional<value_type>;
     using sibling_list =
@@ -248,7 +250,7 @@ namespace detail {
 
     task<> release(sibling_iter sibling_pos,
                    segment_iter segment_pos,
-                   value_type&& value) override {
+                   value_type&& value) {
       co_await mutex_.lock();
       mutex_guard guard{mutex_, std::adopt_lock};
 

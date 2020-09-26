@@ -341,13 +341,17 @@ using tag_prev_t = typename tag_prev<Tag>::type;
 template<typename Tag>
 struct tag_key;
 
+struct etag_value_helper {
+  using type = etag_value;
+};
+
 template<std::uint8_t Size, typename... Tys>
 struct tag_key<stag<Size, Tys...>> {
   static_assert(Size <= sizeof...(Tys));
-  using type =
-      std::conditional_t<(Size < 1),
-                         std::tuple_element_t<Size - 1, std::tuple<Tys...>>,
-                         etag_value>;
+  using type = typename std::conditional_t<
+      (Size > 0),
+      std::tuple_element<Size - 1, std::tuple<Tys...>>,
+      etag_value_helper>::type;
 };
 
 template<typename Alloc>
