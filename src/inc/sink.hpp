@@ -64,14 +64,14 @@ namespace detail {
 
 template<sinkable Ty,
          typename Alloc = std::allocator<Ty>,
-         typename TLess = std::less<Ty>>
+         typename Less = std::less<Ty>>
 class priority_sink_queue
     : public detail::base_sink_queue<
-          std::priority_queue<Ty, std::vector<Ty, Alloc>, TLess>,
+          std::priority_queue<Ty, std::vector<Ty, Alloc>, Less>,
           Alloc> {
 private:
   using base_type = detail::base_sink_queue<
-      std::priority_queue<Ty, std::vector<Ty, Alloc>, TLess>,
+      std::priority_queue<Ty, std::vector<Ty, Alloc>, Less>,
       Alloc>;
 
 public:
@@ -152,13 +152,14 @@ template<typename Ty>
 concept sinklike = requires(Ty s) {
   typename Ty::value_type;
   requires sinkable<typename Ty::value_type>;
+  typename Ty::get_type;
 
   { s.get() }
-  ->std::same_as<typename Ty::value_type>;
+  ->std::same_as<typename Ty::get_type>;
   {s.put(std::declval<typename Ty::value_type&&>())};
 };
 
-template<queuelike Queue, typename TMtm>
+template<queuelike Queue, typename Mtm>
 class sink;
 
 template<queuelike Queue>
@@ -171,6 +172,8 @@ public:
   using value_type = typename queue_type::value_type;
   using allocator_type = typename queue_type::allocator_type;
 
+  using get_type = std::optional<value_type>;
+
 public:
   inline sink(allocator_type const& alloc = allocator_type{})
       : items_{alloc} {
@@ -182,7 +185,7 @@ public:
   sink& operator=(sink const&) = delete;
   sink& operator=(sink&&) = delete;
 
-  inline std::optional<value_type> get() noexcept {
+  inline get_type get() noexcept {
     if (!items_.empty()) {
       return items_.pop();
     }
@@ -275,6 +278,8 @@ public:
   using value_type = typename queue_type::value_type;
   using allocator_type = typename queue_type::allocator_type;
 
+  using get_type = task<value_type>;
+
 private:
   using awaitable_type = detail::sink_awaitable<value_type>;
 
@@ -289,7 +294,7 @@ public:
   sink& operator=(sink const&) = delete;
   sink& operator=(sink&&) = delete;
 
-  inline task<value_type> get() noexcept {
+  inline get_type get() noexcept {
     detail::sink_awaitable<value_type> awaitable{};
 
     {
@@ -368,9 +373,33 @@ private:
   mutex mutex_;
 };
 
-// template<typename TOrder, typename TMtm>
-// struct sink_builder {
-//  using type = sink<>
-//};
+template<typename Order,
+         typename Mtm,
+         typename Ty,
+         typename Alloc,
+         typename... Rest>
+struct make_sink;
+
+template<typename Ty, typename Mtm, typename Alloc, typename Less>
+struct make_sink<priority_order, Mtm, Ty, Alloc, Less> {
+  using type = sink<priority_sink_queue<Ty, Alloc, Less>, Mtm>;
+};
+
+template<typename Ty, typename Mtm, typename Alloc>
+struct make_sink<fifo_order, Mtm, Ty, Alloc> {
+  using type = sink<fifo_sink_queue<Ty, Alloc>, Mtm>;
+};
+
+template<typename Ty, typename Mtm, typename Alloc>
+struct make_sink<lifo_order, Mtm, Ty, Alloc> {
+  using type = sink<lifo_sink_queue<Ty, Alloc>, Mtm>;
+};
+
+template<typename Order,
+         typename Mtm,
+         typename Ty,
+         typename Alloc,
+         typename... Rest>
+using make_sink_t = typename make_sink<Order, Mtm, Ty, Alloc, Rest...>::type;
 
 } // namespace frq
