@@ -48,7 +48,7 @@ public:
   }
 
   inline value_type& value() noexcept {
-    handle_->value();
+    return handle_->value();
   }
 
 private:
@@ -172,7 +172,7 @@ namespace detail {
       co_await mutex_.lock();
       mutex_guard guard{mutex_, std::adopt_lock};
 
-      co_return reserve(std::move(view), std::move(guard));
+      co_return co_await reserve(std::move(view), std::move(guard));
     }
 
   private:
@@ -184,7 +184,7 @@ namespace detail {
         co_return {add_sibling()};
       }
       else if constexpr (view_traits::is_static) {
-        co_return co_await forward_reserve(view.next(), std::move(guard));
+        co_return co_await reserve_child(view.next(), std::move(guard));
       }
       else {
         if (view.last()) {
@@ -393,8 +393,8 @@ namespace detail {
 } // namespace detail
 
 template<typename Ty,
-         typename Tag,
-         typename Sink,
+         sinklike Sink,
+         taglike Tag,
          typename Alloc = std::allocator<Ty>>
 class forque {
 public:
@@ -405,6 +405,9 @@ public:
 
   using reservation_type = reservation<Ty>;
   using retainment_type = retainment<Ty>;
+
+  static_assert(
+      std::is_same_v<retainment_type, typename sink_type::value_type>);
 
 private:
   using root_chain_type = detail::
