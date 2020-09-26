@@ -161,7 +161,7 @@ namespace detail {
                  prev_type* parent,
                  level_tag_type&& tag,
                  allocator_type const& alloc = allocator_type{}) noexcept
-        : sink_{sink}
+        : sink_{&sink}
         , parent_{parent}
         , tag_{std::move(tag)}
         , segments_{segment_alloc_type{alloc}} {
@@ -412,7 +412,10 @@ private:
 
 public:
   explicit inline forque(allocator_type const& alloc = allocator_type{})
-      : root_{sink_, nullptr, tag_root_t<tag_type>{}, alloc} {
+      : root_{sink_,
+              nullptr,
+              tag_root_t<tag_type>{frq::construct_tag_default},
+              alloc} {
   }
 
   forque(forque&&) = delete;
