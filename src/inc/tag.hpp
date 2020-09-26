@@ -361,7 +361,7 @@ struct tag_key<dtag<Alloc>> {
 
 template<>
 struct tag_key<etag> {
-  using type = void;
+  using type = etag_value;
 };
 
 template<typename Tag>
