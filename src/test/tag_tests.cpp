@@ -403,3 +403,10 @@ TEST_F(dtag_view_tests, last_view_last) {
 
   EXPECT_TRUE(view.last());
 }
+
+static_assert(frq::tag_view_traits<test_sview<0>>::is_static);
+static_assert(!frq::tag_view_traits<test_sview<0>>::is_last);
+static_assert(frq::tag_view_traits<test_sview<1>>::is_last);
+
+static_assert(!frq::tag_view_traits<test_dview>::is_static);
+static_assert(!frq::tag_view_traits<test_dview>::is_last);
