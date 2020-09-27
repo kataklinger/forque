@@ -87,6 +87,9 @@ namespace detail {
 
     using allocator_type = Alloc;
 
+    using reservation_type = reservation<value_type>;
+    using retainment_type = retainment<value_type>;
+
   private:
     using key_type = tag_key_t<level_tag_type>;
 
@@ -168,7 +171,7 @@ namespace detail {
     }
 
     template<viewlike View>
-    task<reservation<value_type>> reserve(View view) {
+    task<reservation_type> reserve(View view) {
       co_await mutex_.lock();
       mutex_guard guard{mutex_, std::adopt_lock};
 
@@ -177,18 +180,18 @@ namespace detail {
 
   private:
     template<viewlike View>
-    task<reservation<value_type>> reserve(View view, mutex_guard&& guard) {
+    task<reservation_type> reserve(View view, mutex_guard&& guard) {
       using view_traits = tag_view_traits<View>;
 
       if constexpr (view_traits::is_last) {
-        co_return {add_sibling()};
+        co_return add_sibling();
       }
       else if constexpr (view_traits::is_static) {
         co_return co_await reserve_child(view.next(), std::move(guard));
       }
       else {
         if (view.last()) {
-          co_return {add_sibling()};
+          co_return add_sibling();
         }
         else {
           co_return co_await reserve_child(view.next(), std::move(guard));
@@ -205,16 +208,16 @@ namespace detail {
         segments_.push_back({});
       }
 
-      auto segment = segments_.rbegin();
+      auto segment = segments_.rbegin().base();
       ++segment->version_;
 
       auto& siblings = segment->siblings_;
-      return make_handle(segment, siblings.insert(siblings.end(), {}));
+      return reservation_type{
+          make_handle(segment, siblings.insert(siblings.end(), {}))};
     }
 
     template<viewlike View>
-    task<reservation<value_type>> reserve_child(View view,
-                                                mutex_guard&& guard) {
+    task<reservation_type> reserve_child(View view, mutex_guard&& guard) {
       auto& child = ensure_child(view)->second;
 
       co_await child.mutex_.lock();
@@ -259,7 +262,8 @@ namespace detail {
 
       if (segment_pos->active_ && segment_pos == begin(segments_) &&
           sibling_pos == begin(segment_pos->siblings_)) {
-        co_await sink_->put(retainment{make_handle(segment_pos, sibling_pos)});
+        co_await sink_->put(
+            retainment_type{make_handle(segment_pos, sibling_pos)});
       }
     }
 
@@ -290,7 +294,8 @@ namespace detail {
     task<> activate_sibling(segment_iter segment_pos) {
       auto sibling_pos = segment_pos->siblings_.begin();
       if (*sibling_pos) {
-        co_await sink_->put(retainment{make_handle(segment_pos, sibling_pos)});
+        co_await sink_->put(
+            retainment_type{make_handle(segment_pos, sibling_pos)});
       }
     }
 
@@ -389,6 +394,9 @@ namespace detail {
 
     level_tag_type tag_;
     segment_list segments_;
+
+    template<typename, taglike, sinklike, typename>
+    friend class chain;
   };
 } // namespace detail
 

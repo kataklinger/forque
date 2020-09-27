@@ -459,7 +459,7 @@ public:
   }
 
   inline bool last() const noexcept {
-    return Level == Tag::size - 1;
+    return Level == tag_type::size - 1;
   }
 
 private:
