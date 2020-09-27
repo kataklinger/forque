@@ -297,19 +297,6 @@ private:
 
 struct etag_value {};
 
-struct etag {
-  using size_type = std::uint8_t;
-  using storage_type = etag_value;
-
-  inline etag_value values() const noexcept {
-    return {};
-  }
-
-  inline etag_value key() const noexcept {
-    return {};
-  }
-};
-
 template<typename Tag>
 struct tag_root {
   using type = Tag;
@@ -330,8 +317,9 @@ struct tag_next {
 
 template<std::uint8_t Size, typename... Tys>
 struct tag_next<stag<Size, Tys...>> {
-  using type = std::
-      conditional_t<(Size < (sizeof...(Tys))), stag<Size + 1, Tys...>, etag>;
+  using type = std::conditional_t<(Size < (sizeof...(Tys))),
+                                  stag<Size + 1, Tys...>,
+                                  stag<0, Tys...>>;
 };
 
 template<typename Tag>
@@ -344,7 +332,8 @@ struct tag_prev {
 
 template<std::uint8_t Size, typename... Tys>
 struct tag_prev<stag<Size, Tys...>> {
-  using type = std::conditional_t<(Size > 0), stag<Size - 1, Tys...>, etag>;
+  using type =
+      std::conditional_t<(Size > 0), stag<Size - 1, Tys...>, stag<0, Tys...>>;
 };
 
 template<typename Tag>
@@ -369,11 +358,6 @@ struct tag_key<stag<Size, Tys...>> {
 template<typename Alloc>
 struct tag_key<dtag<Alloc>> {
   using type = dtag_value;
-};
-
-template<>
-struct tag_key<etag> {
-  using type = etag_value;
 };
 
 template<typename Tag>
@@ -522,12 +506,14 @@ private:
 template<typename View>
 struct tag_traits {
   static constexpr bool is_static = false;
+  static constexpr bool is_root = false;
   static constexpr bool is_last = false;
 };
 
 template<std::uint8_t Size, typename... Tys>
 struct tag_traits<stag<Size, Tys...>> {
   static constexpr bool is_static = true;
+  static constexpr bool is_root = Size == 0;
   static constexpr bool is_last = Size == sizeof...(Tys);
 };
 
