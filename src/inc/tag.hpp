@@ -69,8 +69,12 @@ public:
       : values_{std::move(values)} {
   }
 
-  storage_type const& values() const noexcept {
+  inline storage_type const& values() const noexcept {
     return values_;
+  }
+
+  inline auto key() const noexcept {
+    return get<size - 1>(values_);
   }
 
 private:
@@ -283,6 +287,10 @@ public:
                                    static_cast<size_type>(sizeof...(Tys))>{});
   }
 
+  inline auto key() const noexcept {
+    return values_.back();
+  }
+
 private:
   storage_type values_;
 };
@@ -294,6 +302,10 @@ struct etag {
   using storage_type = etag_value;
 
   inline etag_value values() const noexcept {
+    return {};
+  }
+
+  inline etag_value key() const noexcept {
     return {};
   }
 };
@@ -505,6 +517,18 @@ public:
 private:
   tag_type const* tag_;
   size_type level_;
+};
+
+template<typename View>
+struct tag_traits {
+  static constexpr bool is_static = false;
+  static constexpr bool is_last = false;
+};
+
+template<std::uint8_t Size, typename... Tys>
+struct tag_traits<stag<Size, Tys...>> {
+  static constexpr bool is_static = true;
+  static constexpr bool is_last = Size == sizeof...(Tys);
 };
 
 template<typename View>
