@@ -91,10 +91,11 @@ namespace detail {
     using retainment_type = retainment<value_type>;
 
   private:
-    using key_type = tag_key_t<level_tag_type>;
-
     using next_tag_type = tag_next_t<level_tag_type>;
     using prev_tag_type = tag_prev_t<level_tag_type>;
+
+    using key_type = tag_key_t<level_tag_type>;
+    using next_key_type = tag_key_t<next_tag_type>;
 
     using next_type =
         chain<value_type, next_tag_type, sink_type, allocator_type>;
@@ -108,12 +109,12 @@ namespace detail {
     using sibling_iter = typename sibling_list::iterator;
 
     using children_map = std::unordered_map<
-        key_type,
+        next_key_type,
         next_type,
-        std::hash<key_type>,
-        std::equal_to<key_type>,
+        std::hash<next_key_type>,
+        std::equal_to<next_key_type>,
         detail::rebind_alloc_t<allocator_type,
-                               std::pair<const key_type, next_type>>>;
+                               std::pair<const next_key_type, next_type>>>;
 
     struct segment {
       inline bool forked() const noexcept {
@@ -199,7 +200,6 @@ namespace detail {
       }
     }
 
-  private:
     auto add_sibling() {
       using alloc_type =
           detail::rebind_alloc_t<allocator_type, item_handle_impl>;
@@ -225,7 +225,7 @@ namespace detail {
 
       mutex_guard{std::move(guard)};
 
-      co_return child.reserve(view, std::move(guard_child));
+      co_return co_await child.reserve(view, std::move(guard_child));
     }
 
     template<viewlike View>
@@ -279,16 +279,20 @@ namespace detail {
         mutex_guard{std::move(guard_parent)};
 
         co_await activate_sibling(segment_pos);
+        co_return;
       }
-      else if (segment_pos->forked()) {
-        mutex_guard{std::move(guard_parent)};
 
-        co_await activate_children(segment_pos);
+      if constexpr (!tag_traits<level_tag_type>::is_last) {
+        if (segment_pos->forked()) {
+          mutex_guard{std::move(guard_parent)};
+
+          co_await activate_children(segment_pos);
+          co_return;
+        }
       }
-      else {
-        co_await next_segment(
-            segment_pos, std::move(guard_parent), std::move(guard_owner));
-      }
+
+      co_await next_segment(
+          segment_pos, std::move(guard_parent), std::move(guard_owner));
     }
 
     task<> activate_sibling(segment_iter segment_pos) {
@@ -330,14 +334,16 @@ namespace detail {
       mutex_guard guard_this{mutex_, std::adopt_lock};
 
       auto segment_pos = segments_.begin();
-      auto child = segment_pos->children_.find(tag);
+      auto child_pos = segment_pos->children_.find(tag.key());
 
-      if (child != segment_pos->children_.end()) {
-        co_await child->mutex_.lock();
-        mutex_guard guard_child{child->mutex_, std::adopt_lock};
+      if (child_pos != segment_pos->children_.end()) {
+        auto& [child_key, child] = *child_pos;
 
-        if (child->get_version() == version) {
-          segment_pos->children_.erase(child);
+        co_await child.mutex_.lock();
+        mutex_guard guard_child{child.mutex_, std::adopt_lock};
+
+        if (child.get_version() == version) {
+          segment_pos->children_.erase(child_pos);
           if (segment_pos->children_.empty()) {
             mutex_guard{std::move(guard_child)};
 
@@ -352,12 +358,14 @@ namespace detail {
                         mutex_guard&& guard_parent,
                         mutex_guard&& guard_this) {
       if (segments_.size() > 1) {
-        auto next_segment = segments_.erase(segment_pos);
+        auto next_pos = segments_.erase(segment_pos);
         mutex_guard{std::move(guard_parent)};
 
-        co_await activate_segment(next_segment);
+        co_await activate_segment(next_pos);
+        co_return;
       }
-      else {
+
+      if constexpr (!tag_traits<level_tag_type>::is_root) {
         auto parent = parent_;
 
         auto version = get_version();
