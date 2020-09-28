@@ -108,13 +108,17 @@ namespace detail {
                   detail::rebind_alloc_t<allocator_type, sibling_type>>;
     using sibling_iter = typename sibling_list::iterator;
 
+    using next_ptr = std::shared_ptr<next_type>;
+    using next_allocator_type =
+        detail::rebind_alloc_t<allocator_type, next_type>;
+
     using children_map = std::unordered_map<
         next_key_type,
-        next_type,
+        next_ptr,
         std::hash<next_key_type>,
         std::equal_to<next_key_type>,
         detail::rebind_alloc_t<allocator_type,
-                               std::pair<const next_key_type, next_type>>>;
+                               std::pair<const next_key_type, next_ptr>>>;
 
     struct segment {
       inline bool forked() const noexcept {
@@ -184,7 +188,10 @@ namespace detail {
     task<reservation_type> reserve(View view, mutex_guard&& guard) {
       using view_traits = tag_view_traits<View>;
 
-      if constexpr (view_traits::is_last) {
+      if constexpr (std::is_same_v<etag_value, key_type>) {
+        co_return co_await reserve_child(view, std::move(guard));
+      }
+      else if constexpr (view_traits::is_last) {
         co_return add_sibling();
       }
       else if constexpr (view_traits::is_static) {
@@ -218,26 +225,34 @@ namespace detail {
 
     template<viewlike View>
     task<reservation_type> reserve_child(View view, mutex_guard&& guard) {
-      auto& child = ensure_child(view)->second;
+      auto& child = ensure_child(view);
 
-      co_await child.mutex_.lock();
-      mutex_guard guard_child{child.mutex_, std::adopt_lock};
+      co_await child->mutex_.lock();
+      mutex_guard guard_child{child->mutex_, std::adopt_lock};
 
       mutex_guard{std::move(guard)};
 
-      co_return co_await child.reserve(view, std::move(guard_child));
+      co_return co_await child->reserve(view, std::move(guard_child));
     }
 
     template<viewlike View>
-    auto ensure_child(View view) {
+    auto& ensure_child(View view) {
       auto& children = ensure_segment().children_;
       auto it = children.find(view.key());
-      if (it == children.end()) {
-        return children.insert(
-            std::pair{view.key(), next_type{*sink_, this, view.sub()}});
+      if (it != children.end()) {
+        return it->second;
       }
 
-      return it;
+      auto child = std::allocate_shared<next_type>(
+          next_allocator_type{children.get_allocator()},
+          *sink_,
+          this,
+          view.sub());
+
+      auto [pos, result] =
+          children.insert(std::make_pair(view.key(), std::move(child)));
+
+      return pos->second;
     }
 
     auto& ensure_segment() {
@@ -305,7 +320,7 @@ namespace detail {
 
     task<> activate_children(segment_iter segment_pos) {
       for (auto& [_, child] : segment_pos->children_) {
-        co_await child.activate_segment();
+        co_await child->activate_segment();
       }
     }
 
@@ -339,10 +354,10 @@ namespace detail {
       if (child_pos != segment_pos->children_.end()) {
         auto& [child_key, child] = *child_pos;
 
-        co_await child.mutex_.lock();
-        mutex_guard guard_child{child.mutex_, std::adopt_lock};
+        co_await child->mutex_.lock();
+        mutex_guard guard_child{child->mutex_, std::adopt_lock};
 
-        if (child.get_version() == version) {
+        if (child->get_version() == version) {
           segment_pos->children_.erase(child_pos);
           if (segment_pos->children_.empty()) {
             mutex_guard{std::move(guard_child)};
@@ -405,7 +420,7 @@ namespace detail {
 
     template<typename, taglike, sinklike, typename>
     friend class chain;
-  };
+  }; // namespace detail
 } // namespace detail
 
 template<typename Ty,
