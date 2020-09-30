@@ -221,8 +221,6 @@ class dtag {
 public:
   using size_type = std::uint32_t;
   using allocator_type = Alloc;
-
-private:
   using storage_type =
       std::vector<dtag_value,
                   detail::rebind_alloc_t<allocator_type, dtag_value>>;
