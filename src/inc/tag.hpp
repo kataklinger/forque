@@ -361,18 +361,18 @@ struct tag_key<dtag<Alloc>> {
 template<typename Tag>
 using tag_key_t = typename tag_key<Tag>::type;
 
+template<taglike Tag, typename Tag::size_type Sub>
+struct sub_tag;
+
+template<std::uint8_t Size, std::uint8_t Sub, typename... Tys>
+struct sub_tag<stag<Size, Tys...>, Sub> {
+  using type = stag<Sub, Tys...>;
+};
+
+template<taglike Tag, typename Tag::size_type Sub>
+using sub_tag_t = typename sub_tag<Tag, Sub>::type;
+
 namespace detail {
-  template<taglike Tag, typename Tag::size_type Sub>
-  struct sub_tag;
-
-  template<std::uint8_t Size, std::uint8_t Sub, typename... Tys>
-  struct sub_tag<stag<Size, Tys...>, Sub> {
-    using type = stag<Sub, Tys...>;
-  };
-
-  template<taglike Tag, typename Tag::size_type Sub>
-  using sub_tag_t = typename sub_tag<Tag, Sub>::type;
-
   template<std::uint8_t Sub,
            std::uint8_t Size,
            typename... Tys,
@@ -429,7 +429,7 @@ class stag_view {
 public:
   using tag_type = Tag;
   using key_type = std::tuple_element_t<Level, typename tag_type::storage_type>;
-  using sub_type = detail::sub_tag_t<tag_type, Level + 1>;
+  using sub_type = sub_tag_t<tag_type, Level + 1>;
   using next_type = std::conditional_t<(Level < Tag::size - 1),
                                        stag_view<tag_type, Level + 1>,
                                        stag_view<tag_type, Level>>;
