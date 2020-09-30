@@ -214,12 +214,13 @@ namespace detail {
         segments_.push_back({});
       }
 
-      auto segment = segments_.rbegin().base();
+      auto segment = prev(segments_.end());
       ++segment->version_;
 
       auto& siblings = segment->siblings_;
-      return reservation_type{
-          make_handle(segment, siblings.insert(siblings.end(), {}))};
+      siblings.push_back({});
+
+      return reservation_type{make_handle(segment, prev(siblings.end()))};
     }
 
     template<viewlike View>
