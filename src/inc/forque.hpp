@@ -127,7 +127,7 @@ namespace detail {
       sibling_list siblings_;
       children_map children_;
       std::uint64_t version_{0};
-      bool active_{false};
+      bool active_;
     };
 
     using segment_alloc_type = detail::rebind_alloc_t<allocator_type, segment>;
@@ -167,11 +167,13 @@ namespace detail {
     inline chain(sink_type& sink,
                  prev_type* parent,
                  level_tag_type&& tag,
+                 bool active,
                  allocator_type const& alloc = allocator_type{}) noexcept
         : sink_{&sink}
         , parent_{parent}
         , tag_{std::move(tag)}
         , segments_{segment_alloc_type{alloc}} {
+      segments_.push_back(segment{.active_ = active});
     }
 
     template<viewlike View>
@@ -187,7 +189,7 @@ namespace detail {
     task<reservation_type> reserve(View view, mutex_guard&& guard) {
       using view_traits = tag_view_traits<View>;
 
-      if constexpr (std::is_same_v<etag_value, key_type>) {
+      if constexpr (tag_traits<level_tag_type>::is_root) {
         co_return co_await reserve_child(view, std::move(guard));
       }
       else if constexpr (view_traits::is_last) {
@@ -237,25 +239,25 @@ namespace detail {
 
     template<viewlike View>
     auto& ensure_child(View view) {
-      auto& children = ensure_segment().children_;
+      auto& segment = get_segment();
+      auto& children = segment.children_;
       auto it = children.find(view.key());
       if (it != children.end()) {
         return it->second;
       }
 
-      auto [pos, result] =
-          children.emplace(std::piecewise_construct,
-                           std::forward_as_tuple(view.key()),
-                           std::forward_as_tuple(*sink_, this, view.sub()));
+      auto active = segment.active_ && segment.siblings_.empty();
+
+      auto [pos, result] = children.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(view.key()),
+          std::forward_as_tuple(
+              *sink_, this, view.sub(), active, children.get_allocator()));
 
       return pos->second;
     }
 
-    auto& ensure_segment() {
-      if (segments_.empty()) {
-        segments_.push_back({});
-      }
-
+    auto& get_segment() {
       auto& segment = segments_.back();
       ++segment.version_;
 
@@ -354,10 +356,10 @@ namespace detail {
         mutex_guard guard_child{child.mutex_, std::adopt_lock};
 
         if (child.get_version() == version) {
+          mutex_guard{std::move(guard_child)};
+
           segment_pos->children_.erase(child_pos);
           if (segment_pos->children_.empty()) {
-            mutex_guard{std::move(guard_child)};
-
             co_await next_segment(
                 segment_pos, std::move(guard_parent), std::move(guard_this));
           }
@@ -445,6 +447,7 @@ public:
       : root_{sink_,
               nullptr,
               tag_root_t<tag_type>{frq::construct_tag_default},
+              true,
               alloc} {
   }
 

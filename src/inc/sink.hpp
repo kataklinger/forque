@@ -367,7 +367,7 @@ private:
   }
 
 private:
-  awaitable_type* waiters_;
+  awaitable_type* waiters_{nullptr};
   queue_type items_;
 
   mutex mutex_;
