@@ -444,8 +444,13 @@ private:
 
 public:
   explicit inline forque(allocator_type const& alloc = allocator_type{})
-      : root_{sink_,
+      : meta_{sink_,
               nullptr,
+              tag_root_t<tag_type>{frq::construct_tag_default},
+              true,
+              alloc}
+      , root_{sink_,
+              &meta_,
               tag_root_t<tag_type>{frq::construct_tag_default},
               true,
               alloc} {
@@ -468,6 +473,7 @@ public:
 
 private:
   sink_type sink_;
+  root_chain_type meta_;
   root_chain_type root_;
 };
 
