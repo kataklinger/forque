@@ -18,32 +18,35 @@ using static_queue = frq::forque<item_type, sink_type, static_tag>;
 using dynamic_tag = frq::dtag<>;
 using dynamic_queue = frq::forque<item_type, sink_type, dynamic_tag>;
 
+using reservation_type = frq::reservation<item_type>;
+using retainment_type = frq::retainment<item_type>;
+
 class static_queue_tests : public testing::Test {
 protected:
   void SetUp() override {
   }
 
   template<typename... Args>
-  frq::reservation<item_type> push(Args&&... args) {
+  frq::task<> push(item_type value, Args&&... args) {
     using tag_type = frq::sub_tag_t<static_tag, sizeof...(Args)>;
-    return frq::sync_wait(queue_.reserve(
-        tag_type{frq::construct_tag_default, std::forward<Args>(args)...}));
+    auto reservation = co_await queue_.reserve(
+        tag_type{frq::construct_tag_default, std::forward<Args>(args)...});
+    co_await reservation.release(value);
   }
 
-  frq::retainment<item_type> pop() {
-    return frq::sync_wait(queue_.get());
+  frq::task<item_type> pop() {
+    auto retainment = co_await queue_.get();
+    auto result = retainment.value();
+    co_await retainment.finalize();
+    co_return result;
   }
 
   static_queue queue_;
 };
 
 TEST_F(static_queue_tests, get_x) {
-  auto reservation = push(1, 1.0F);
-  frq::sync_wait(reservation.release(1.0F));
+  frq::sync_wait(push(1.0F, 1, 1.0F));
+  auto result = frq::sync_wait(pop());
 
-  auto retainment = pop();
-  auto value = retainment.value();
-  frq::sync_wait(retainment.finalize());
-
-  EXPECT_EQ(1.0F, value);
+  EXPECT_EQ(1.0F, result);
 }
