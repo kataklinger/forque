@@ -23,6 +23,8 @@ namespace detail {
     }
 
     virtual task<> release(value_type&& value) = 0;
+    virtual task<> release(value_type const& value) = 0;
+
     virtual task<> finalize() = 0;
 
     virtual value_type& value() noexcept = 0;
@@ -68,6 +70,10 @@ public:
 
   inline task<> release(value_type&& value) {
     co_await handle_->release(std::move(value));
+  }
+
+  inline task<> release(value_type const& value) {
+    co_await handle_->release(value);
   }
 
 private:
@@ -146,6 +152,10 @@ namespace detail {
 
       task<> release(value_type&& value) override {
         co_await owner_->release(position_, segment_, std::move(value));
+      }
+
+      task<> release(value_type const& value) override {
+        co_await owner_->release(position_, segment_, value);
       }
 
       task<> finalize() override {
@@ -264,14 +274,19 @@ namespace detail {
       return segment;
     }
 
-    task<> release(sibling_iter sibling_pos,
-                   segment_iter segment_pos,
-                   value_type&& value) {
+    template<typename Tx>
+    task<> release(
+        sibling_iter sibling_pos,
+        segment_iter segment_pos,
+        Tx&& value) requires(std::
+                                 is_assignable_v<
+                                     std::add_lvalue_reference_t<value_type>,
+                                     decltype(value)>) {
       co_await mutex_.lock();
       mutex_guard guard{mutex_, std::adopt_lock};
 
       assert(!*sibling_pos);
-      *sibling_pos = std::move(value);
+      *sibling_pos = std::forward<Tx>(value);
 
       if (segment_pos->active_ && segment_pos == begin(segments_) &&
           sibling_pos == begin(segment_pos->siblings_)) {
