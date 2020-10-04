@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sink.hpp"
+#include "runque.hpp"
 #include "tag.hpp"
 
 #include "mutex.hpp"
@@ -83,13 +83,13 @@ private:
 namespace detail {
   template<typename Ty,
            taglike LevelTag,
-           sinklike Sink,
+           runlike Runque,
            typename Alloc = std::allocator<Ty>>
   class chain {
   public:
     using value_type = Ty;
     using level_tag_type = LevelTag;
-    using sink_type = Sink;
+    using runque_type = Runque;
 
     using allocator_type = Alloc;
 
@@ -104,9 +104,9 @@ namespace detail {
     using next_key_type = tag_key_t<next_tag_type>;
 
     using next_type =
-        chain<value_type, next_tag_type, sink_type, allocator_type>;
+        chain<value_type, next_tag_type, runque_type, allocator_type>;
     using prev_type =
-        chain<value_type, prev_tag_type, sink_type, allocator_type>;
+        chain<value_type, prev_tag_type, runque_type, allocator_type>;
 
     using sibling_type = std::optional<value_type>;
     using sibling_list =
@@ -174,12 +174,12 @@ namespace detail {
     };
 
   public:
-    inline chain(sink_type& sink,
+    inline chain(runque_type& runque,
                  prev_type* parent,
                  level_tag_type&& tag,
                  bool active,
                  allocator_type const& alloc = allocator_type{}) noexcept
-        : sink_{&sink}
+        : runque_{&runque}
         , parent_{parent}
         , tag_{std::move(tag)}
         , segments_{segment_alloc_type{alloc}} {
@@ -242,7 +242,7 @@ namespace detail {
       co_await child.mutex_.lock();
       mutex_guard guard_child{child.mutex_, std::adopt_lock};
 
-      mutex_guard{std::move(guard)};
+      sink(guard);
 
       co_return co_await child.reserve(view, std::move(guard_child));
     }
@@ -262,7 +262,7 @@ namespace detail {
           std::piecewise_construct,
           std::forward_as_tuple(view.key()),
           std::forward_as_tuple(
-              *sink_, this, view.sub(), active, children.get_allocator()));
+              *runque_, this, view.sub(), active, children.get_allocator()));
 
       return pos->second;
     }
@@ -290,7 +290,7 @@ namespace detail {
 
       if (segment_pos->active_ && segment_pos == begin(segments_) &&
           sibling_pos == begin(segment_pos->siblings_)) {
-        co_await sink_->put(
+        co_await runque_->put(
             retainment_type{make_handle(segment_pos, sibling_pos)});
       }
     }
@@ -304,7 +304,7 @@ namespace detail {
 
       segment_pos->siblings_.pop_front();
       if (!segment_pos->siblings_.empty()) {
-        mutex_guard{std::move(guard_parent)};
+        sink(guard_parent);
 
         co_await activate_sibling(segment_pos);
         co_return;
@@ -312,7 +312,7 @@ namespace detail {
 
       if constexpr (!tag_traits<level_tag_type>::is_last) {
         if (segment_pos->forked()) {
-          mutex_guard{std::move(guard_parent)};
+          sink(guard_parent);
 
           co_await activate_children(segment_pos);
           co_return;
@@ -326,7 +326,7 @@ namespace detail {
     task<> activate_sibling(segment_iter segment_pos) {
       auto sibling_pos = segment_pos->siblings_.begin();
       if (*sibling_pos) {
-        co_await sink_->put(
+        co_await runque_->put(
             retainment_type{make_handle(segment_pos, sibling_pos)});
       }
     }
@@ -371,7 +371,7 @@ namespace detail {
         mutex_guard guard_child{child.mutex_, std::adopt_lock};
 
         if (child.get_version() == version) {
-          mutex_guard{std::move(guard_child)};
+          sink(guard_child);
 
           segment_pos->children_.erase(child_pos);
           if (segment_pos->children_.empty()) {
@@ -387,7 +387,7 @@ namespace detail {
                         mutex_guard&& guard_this) {
       if (segments_.size() > 1) {
         auto next_pos = segments_.erase(segment_pos);
-        mutex_guard{std::move(guard_parent)};
+        sink(guard_parent);
 
         co_await activate_segment(next_pos);
         co_return;
@@ -399,8 +399,8 @@ namespace detail {
         auto version = get_version();
         auto tag = tag_;
 
-        mutex_guard{std::move(guard_parent)};
-        mutex_guard{std::move(guard_this)};
+        sink(guard_parent);
+        sink(guard_this);
 
         co_await parent->remove_child(tag, version);
       }
@@ -424,47 +424,47 @@ namespace detail {
   private:
     mutex mutex_;
 
-    sink_type* sink_;
+    runque_type* runque_;
 
     prev_type* parent_;
 
     level_tag_type tag_;
     segment_list segments_;
 
-    template<typename, taglike, sinklike, typename>
+    template<typename, taglike, runlike, typename>
     friend class chain;
   }; // namespace detail
 } // namespace detail
 
 template<typename Ty,
-         sinklike Sink,
+         runlike Runque,
          taglike Tag,
          typename Alloc = std::allocator<Ty>>
 class forque {
 public:
   using value_type = Ty;
   using tag_type = Tag;
-  using sink_type = Sink;
+  using runque_type = Runque;
   using allocator_type = Alloc;
 
   using reservation_type = reservation<Ty>;
   using retainment_type = retainment<Ty>;
 
   static_assert(
-      std::is_same_v<retainment_type, typename sink_type::value_type>);
+      std::is_same_v<retainment_type, typename runque_type::value_type>);
 
 private:
   using root_chain_type = detail::
-      chain<value_type, tag_root_t<tag_type>, sink_type, allocator_type>;
+      chain<value_type, tag_root_t<tag_type>, runque_type, allocator_type>;
 
 public:
   explicit inline forque(allocator_type const& alloc = allocator_type{})
-      : meta_{sink_,
+      : meta_{runque_,
               nullptr,
               tag_root_t<tag_type>{frq::construct_tag_default},
               true,
               alloc}
-      , root_{sink_,
+      , root_{runque_,
               &meta_,
               tag_root_t<tag_type>{frq::construct_tag_default},
               true,
@@ -483,11 +483,11 @@ public:
   }
 
   task<retainment_type> get() noexcept {
-    return sink_.get();
+    return runque_.get();
   }
 
 private:
-  sink_type sink_;
+  runque_type runque_;
   root_chain_type meta_;
   root_chain_type root_;
 };

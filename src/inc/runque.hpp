@@ -12,11 +12,11 @@
 
 namespace frq {
 template<typename Ty>
-concept sinkable = std::is_nothrow_move_constructible_v<Ty>;
+concept runnable = std::is_nothrow_move_constructible_v<Ty>;
 
 namespace detail {
   template<typename Queue, typename Alloc>
-  class base_sink_queue {
+  class base_runque_queue {
   public:
     using queue_type = Queue;
     using allocator_type = Alloc;
@@ -32,16 +32,16 @@ namespace detail {
     };
 
   public:
-    explicit inline base_sink_queue(
+    explicit inline base_runque_queue(
         allocator_type const& alloc = allocator_type{}) noexcept
         : queue_{alloc} {
     }
 
-    base_sink_queue(base_sink_queue const&) = delete;
-    base_sink_queue(base_sink_queue&&) = delete;
+    base_runque_queue(base_runque_queue const&) = delete;
+    base_runque_queue(base_runque_queue&&) = delete;
 
-    base_sink_queue& operator=(base_sink_queue const&) = delete;
-    base_sink_queue& operator=(base_sink_queue&&) = delete;
+    base_runque_queue& operator=(base_runque_queue const&) = delete;
+    base_runque_queue& operator=(base_runque_queue&&) = delete;
 
     inline void push(value_type&& value) {
       queue_.push(std::move(value));
@@ -62,15 +62,15 @@ namespace detail {
   };
 } // namespace detail
 
-template<sinkable Ty,
+template<runnable Ty,
          typename Alloc = std::allocator<Ty>,
          typename Less = std::less<Ty>>
-class priority_sink_queue
-    : public detail::base_sink_queue<
+class priority_runque_queue
+    : public detail::base_runque_queue<
           std::priority_queue<Ty, std::vector<Ty, Alloc>, Less>,
           Alloc> {
 private:
-  using base_type = detail::base_sink_queue<
+  using base_type = detail::base_runque_queue<
       std::priority_queue<Ty, std::vector<Ty, Alloc>, Less>,
       Alloc>;
 
@@ -83,13 +83,13 @@ public:
   }
 };
 
-template<sinkable Ty, typename Alloc = std::allocator<Ty>>
-class fifo_sink_queue
-    : public detail::base_sink_queue<std::queue<Ty, std::deque<Ty, Alloc>>,
-                                     Alloc> {
+template<runnable Ty, typename Alloc = std::allocator<Ty>>
+class fifo_runque_queue
+    : public detail::base_runque_queue<std::queue<Ty, std::deque<Ty, Alloc>>,
+                                       Alloc> {
 private:
   using base_type =
-      detail::base_sink_queue<std::queue<Ty, std::deque<Ty, Alloc>>, Alloc>;
+      detail::base_runque_queue<std::queue<Ty, std::deque<Ty, Alloc>>, Alloc>;
 
 public:
   using base_type::base_type;
@@ -100,13 +100,13 @@ public:
   }
 };
 
-template<sinkable Ty, typename Alloc = std::allocator<Ty>>
-class lifo_sink_queue
-    : public detail::base_sink_queue<std::stack<Ty, std::vector<Ty, Alloc>>,
-                                     Alloc> {
+template<runnable Ty, typename Alloc = std::allocator<Ty>>
+class lifo_runque_queue
+    : public detail::base_runque_queue<std::stack<Ty, std::vector<Ty, Alloc>>,
+                                       Alloc> {
 private:
   using base_type =
-      detail::base_sink_queue<std::stack<Ty, std::vector<Ty, Alloc>>, Alloc>;
+      detail::base_runque_queue<std::stack<Ty, std::vector<Ty, Alloc>>, Alloc>;
 
 public:
   using base_type::base_type;
@@ -118,7 +118,7 @@ public:
 };
 
 template<typename Ty>
-class sink_tratis {
+class runque_tratis {
   using port_type = Ty;
 
   using value_model = typename port_type::value_model;
@@ -139,7 +139,7 @@ concept queuelike = requires(Ty q) {
   typename Ty::value_type;
   typename Ty::allocator_type;
 
-  requires sinkable<typename Ty::value_type>;
+  requires runnable<typename Ty::value_type>;
 
   { q.pop() }
   ->std::same_as<typename Ty::value_type>;
@@ -149,9 +149,9 @@ concept queuelike = requires(Ty q) {
 };
 
 template<typename Ty>
-concept sinklike = requires(Ty s) {
+concept runlike = requires(Ty s) {
   typename Ty::value_type;
-  requires sinkable<typename Ty::value_type>;
+  requires runnable<typename Ty::value_type>;
   typename Ty::get_type;
 
   { s.get() }
@@ -160,10 +160,10 @@ concept sinklike = requires(Ty s) {
 };
 
 template<queuelike Queue, typename Mtm>
-class sink;
+class runque;
 
 template<queuelike Queue>
-class sink<Queue, single_thread_model> {
+class runque<Queue, single_thread_model> {
 private:
   using queue_type = Queue;
 
@@ -175,15 +175,15 @@ public:
   using get_type = std::optional<value_type>;
 
 public:
-  inline sink(allocator_type const& alloc = allocator_type{})
+  inline runque(allocator_type const& alloc = allocator_type{})
       : items_{alloc} {
   }
 
-  sink(sink const&) = delete;
-  sink(sink&&) = delete;
+  runque(runque const&) = delete;
+  runque(runque&&) = delete;
 
-  sink& operator=(sink const&) = delete;
-  sink& operator=(sink&&) = delete;
+  runque& operator=(runque const&) = delete;
+  runque& operator=(runque&&) = delete;
 
   inline get_type get() noexcept {
     if (!items_.empty()) {
@@ -208,14 +208,14 @@ private:
 };
 
 namespace detail {
-  template<sinkable Ty>
-  class sink_awaitable {
+  template<runnable Ty>
+  class runque_awaitable {
   public:
     using value_type = Ty;
 
   public:
-    inline sink_awaitable() noexcept = default;
-    explicit inline sink_awaitable(value_type&& result)
+    inline runque_awaitable() noexcept = default;
+    explicit inline runque_awaitable(value_type&& result)
         : result_{result} {
     }
 
@@ -238,11 +238,11 @@ namespace detail {
       return *result_;
     }
 
-    inline void set_next(sink_awaitable* next) noexcept {
+    inline void set_next(runque_awaitable* next) noexcept {
       next_ = next;
     }
 
-    inline sink_awaitable* get_next() const noexcept {
+    inline runque_awaitable* get_next() const noexcept {
       return next_;
     }
 
@@ -263,13 +263,13 @@ namespace detail {
     std::optional<value_type> result_;
     coro_handle waiter_;
 
-    sink_awaitable* next_{nullptr};
+    runque_awaitable* next_{nullptr};
   };
 
 } // namespace detail
 
 template<queuelike Queue>
-class sink<Queue, coro_thread_model> {
+class runque<Queue, coro_thread_model> {
 private:
   using queue_type = Queue;
 
@@ -281,21 +281,21 @@ public:
   using get_type = task<value_type>;
 
 private:
-  using awaitable_type = detail::sink_awaitable<value_type>;
+  using awaitable_type = detail::runque_awaitable<value_type>;
 
 public:
-  inline sink(allocator_type const& alloc = allocator_type{})
+  inline runque(allocator_type const& alloc = allocator_type{})
       : items_{alloc} {
   }
 
-  sink(sink const&) = delete;
-  sink(sink&&) = delete;
+  runque(runque const&) = delete;
+  runque(runque&&) = delete;
 
-  sink& operator=(sink const&) = delete;
-  sink& operator=(sink&&) = delete;
+  runque& operator=(runque const&) = delete;
+  runque& operator=(runque&&) = delete;
 
   inline get_type get() noexcept {
-    detail::sink_awaitable<value_type> awaitable{};
+    detail::runque_awaitable<value_type> awaitable{};
 
     {
       co_await mutex_.lock();
@@ -378,21 +378,21 @@ template<typename Order,
          typename Ty,
          typename Alloc,
          typename... Rest>
-struct make_sink;
+struct make_runque;
 
 template<typename Ty, typename Mtm, typename Alloc, typename Less>
-struct make_sink<priority_order, Mtm, Ty, Alloc, Less> {
-  using type = sink<priority_sink_queue<Ty, Alloc, Less>, Mtm>;
+struct make_runque<priority_order, Mtm, Ty, Alloc, Less> {
+  using type = runque<priority_runque_queue<Ty, Alloc, Less>, Mtm>;
 };
 
 template<typename Ty, typename Mtm, typename Alloc>
-struct make_sink<fifo_order, Mtm, Ty, Alloc> {
-  using type = sink<fifo_sink_queue<Ty, Alloc>, Mtm>;
+struct make_runque<fifo_order, Mtm, Ty, Alloc> {
+  using type = runque<fifo_runque_queue<Ty, Alloc>, Mtm>;
 };
 
 template<typename Ty, typename Mtm, typename Alloc>
-struct make_sink<lifo_order, Mtm, Ty, Alloc> {
-  using type = sink<lifo_sink_queue<Ty, Alloc>, Mtm>;
+struct make_runque<lifo_order, Mtm, Ty, Alloc> {
+  using type = runque<lifo_runque_queue<Ty, Alloc>, Mtm>;
 };
 
 template<typename Order,
@@ -400,6 +400,7 @@ template<typename Order,
          typename Ty,
          typename Alloc,
          typename... Rest>
-using make_sink_t = typename make_sink<Order, Mtm, Ty, Alloc, Rest...>::type;
+using make_runque_t =
+    typename make_runque<Order, Mtm, Ty, Alloc, Rest...>::type;
 
 } // namespace frq

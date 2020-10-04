@@ -14,7 +14,7 @@
     <ClInclude Include="..\src\inc\forque.hpp" />
     <ClInclude Include="..\src\inc\tag.hpp" />
     <ClInclude Include="..\src\inc\mutex.hpp" />
-    <ClInclude Include="..\src\inc\sink.hpp" />
+    <ClInclude Include="..\src\inc\runque.hpp" />
     <ClInclude Include="..\src\inc\sdefs.hpp" />
     <ClInclude Include="..\src\inc\sync_wait.hpp" />
     <ClInclude Include="..\src\inc\task.hpp" />
