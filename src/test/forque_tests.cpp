@@ -62,7 +62,11 @@ protected:
 
   template<typename... Args>
   frq::task<> push(item_type const& value, Args&&... args) {
-    return push([] {}, value, std::forward<Args>(args)...);
+    using tag_type = frq::sub_tag_t<static_tag, sizeof...(Args)>;
+
+    co_await queue_.reserve(
+        tag_type{frq::construct_tag_default, std::forward<Args>(args)...},
+        value);
   }
 
   template<typename Fn, typename... Args>

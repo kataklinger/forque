@@ -35,7 +35,7 @@ namespace detail {
 } // namespace detail
 
 template<typename Ty>
-class retainment {
+[[nodiscard]] class retainment {
 public:
   using value_type = Ty;
 
@@ -58,7 +58,7 @@ private:
 };
 
 template<typename Ty>
-class reservation {
+[[nodiscard]] class reservation {
 public:
   using value_type = Ty;
 
@@ -93,6 +93,8 @@ namespace detail {
 
     using allocator_type = Alloc;
 
+    using storage_type = std::optional<value_type>;
+
     using reservation_type = reservation<value_type>;
     using retainment_type = retainment<value_type>;
 
@@ -108,10 +110,9 @@ namespace detail {
     using prev_type =
         chain<value_type, prev_tag_type, runque_type, allocator_type>;
 
-    using sibling_type = std::optional<value_type>;
     using sibling_list =
-        std::list<sibling_type,
-                  detail::rebind_alloc_t<allocator_type, sibling_type>>;
+        std::list<storage_type,
+                  detail::rebind_alloc_t<allocator_type, storage_type>>;
     using sibling_iter = typename sibling_list::iterator;
 
     using next_allocator_type =
@@ -187,38 +188,43 @@ namespace detail {
     }
 
     template<viewlike View>
-    task<reservation_type> reserve(View view) {
+    task<reservation_type> reserve(View view, storage_type&& value) {
       co_await mutex_.lock();
       mutex_guard guard{mutex_, std::adopt_lock};
 
-      co_return co_await reserve(std::move(view), std::move(guard));
+      return co_await reserve(
+          std::move(view), std::move(value), std::move(guard));
     }
 
   private:
     template<viewlike View>
-    task<reservation_type> reserve(View view, mutex_guard&& guard) {
+    task<reservation_type>
+        reserve(View view, storage_type&& value, mutex_guard&& guard) {
       using view_traits = tag_view_traits<View>;
 
       if constexpr (tag_traits<level_tag_type>::is_root) {
-        co_return co_await reserve_child(view, std::move(guard));
+        co_return co_await reserve_child(
+            view, std::move(value), std::move(guard));
       }
       else if constexpr (view_traits::is_last) {
-        co_return add_sibling();
+        co_return co_await add_sibling(std::move(value));
       }
       else if constexpr (view_traits::is_static) {
-        co_return co_await reserve_child(view.next(), std::move(guard));
+        co_return co_await reserve_child(
+            view.next(), std::move(value), std::move(guard));
       }
       else {
         if (view.last()) {
-          co_return add_sibling();
+          co_return co_await add_sibling(std::move(value));
         }
         else {
-          co_return co_await reserve_child(view.next(), std::move(guard));
+          co_return co_await reserve_child(
+              view.next(), std::move(value), std::move(guard));
         }
       }
     }
 
-    auto add_sibling() {
+    task<reservation_type> add_sibling(storage_type&& value) {
       using alloc_type =
           detail::rebind_alloc_t<allocator_type, item_handle_impl>;
 
@@ -226,17 +232,27 @@ namespace detail {
         segments_.push_back({});
       }
 
-      auto segment = prev(segments_.end());
-      ++segment->version_;
+      auto segment_pos = prev(segments_.end());
+      auto& siblings = segment_pos->siblings_;
 
-      auto& siblings = segment->siblings_;
-      siblings.push_back({});
+      bool ready =
+          value.has_value() && segment_pos->active_ && siblings.empty();
 
-      return reservation_type{make_handle(segment, prev(siblings.end()))};
+      siblings.push_back(std::move(value));
+      ++segment_pos->version_;
+
+      if (ready) {
+        co_await runque_->put(
+            retainment_type{make_handle(segment_pos, siblings.begin())});
+      }
+
+      co_return reservation_type{
+          make_handle(segment_pos, prev(siblings.end()))};
     }
 
     template<viewlike View>
-    task<reservation_type> reserve_child(View view, mutex_guard&& guard) {
+    task<reservation_type>
+        reserve_child(View view, storage_type&& value, mutex_guard&& guard) {
       auto& child = ensure_child(view);
 
       co_await child.mutex_.lock();
@@ -244,7 +260,8 @@ namespace detail {
 
       sink(guard);
 
-      co_return co_await child.reserve(view, std::move(guard_child));
+      co_return co_await child.reserve(
+          view, std::move(value), std::move(guard_child));
     }
 
     template<viewlike View>
@@ -457,6 +474,8 @@ private:
   using root_chain_type = detail::
       chain<value_type, tag_root_t<tag_type>, runque_type, allocator_type>;
 
+  using storage_type = typename root_chain_type::storage_type;
+
 public:
   explicit inline forque(allocator_type const& alloc = allocator_type{})
       : meta_{runque_,
@@ -477,9 +496,19 @@ public:
   forque& operator=(forque&&) = delete;
   forque& operator=(forque const&) = delete;
 
-  template<typename Tag>
+  template<taglike Tag>
   task<reservation_type> reserve(Tag const& tag) {
-    return root_.reserve(view(tag));
+    return co_await root_.reserve(view(tag), {});
+  }
+
+  template<taglike Tag>
+  task<> reserve(Tag const& tag, value_type const& value) {
+    co_await root_.reserve(view(tag), value);
+  }
+
+  template<taglike Tag>
+  task<> reserve(Tag const& tag, value_type&& value) {
+    co_await root_.reserve(view(tag), std::move(value));
   }
 
   task<retainment_type> get() noexcept {
