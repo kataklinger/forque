@@ -41,6 +41,9 @@ concept taglike = requires(Ty t) {
 
   { t.values() }
   noexcept->std::convertible_to<typename Ty::storage_type>;
+
+  { t.size() }
+  noexcept->std::same_as<typename Ty::size_type>;
 };
 
 template<std::uint8_t Size, typename... Tys>
@@ -53,7 +56,7 @@ public:
       detail::stag_helper_t<std::tuple<Tys...>,
                             std::make_integer_sequence<size_type, Size>>;
 
-  static constexpr size_type size = Size;
+  static constexpr size_type size_v = Size;
 
 public:
   template<typename... Txs>
@@ -73,8 +76,12 @@ public:
     return values_;
   }
 
+  inline size_type size() const noexcept {
+    return size_v;
+  }
+
   inline auto key() const noexcept {
-    return get<size - 1>(values_);
+    return get<size_v - 1>(values_);
   }
 
 private:
@@ -241,7 +248,7 @@ public:
   template<typename HashCmp, typename... Tys>
   dtag(allocator_type const& alloc, HashCmp const& hash_cmp, Tys&&... args)
       : values_{alloc} {
-    static_assert(sizeof...(Tys) > 0);
+    static_assert(sizeof...(Tys) >= 0);
     values_.reserve(sizeof...(Tys));
 
     (values_.push_back(
@@ -274,9 +281,13 @@ public:
     return values_;
   }
 
+  inline size_type size() const noexcept {
+    return static_cast<size_type>(values_.size());
+  }
+
   template<typename... Tys>
   inline auto pack() const {
-    assert(values_.size() == sizeof...(Tys));
+    assert(size() == sizeof...(Tys));
 
     return detail::get_dtag_values(
         values_,
@@ -420,6 +431,9 @@ concept viewlike = requires(Ty v) {
   { v.next() }
   noexcept->std::same_as<typename Ty::next_type>;
 
+  { v.root() }
+  noexcept->std::convertible_to<bool>;
+
   { v.last() }
   noexcept->std::convertible_to<bool>;
 };
@@ -430,7 +444,7 @@ public:
   using tag_type = Tag;
   using key_type = std::tuple_element_t<Level, typename tag_type::storage_type>;
   using sub_type = sub_tag_t<tag_type, Level + 1>;
-  using next_type = std::conditional_t<(Level < Tag::size - 1),
+  using next_type = std::conditional_t<(Level < Tag::size_v - 1),
                                        stag_view<tag_type, Level + 1>,
                                        stag_view<tag_type, Level>>;
 
@@ -453,7 +467,11 @@ public:
   }
 
   inline bool last() const noexcept {
-    return Level == tag_type::size - 1;
+    return Level == tag_type::size_v - 1;
+  }
+
+  inline bool root() const noexcept {
+    return Level == 0;
   }
 
 private:
@@ -493,7 +511,11 @@ public:
   }
 
   inline bool last() const noexcept {
-    return level_ == tag_->values().size() - 1;
+    return level_ == tag_->size() - 1;
+  }
+
+  inline bool root() const noexcept {
+    return level_ == 0;
   }
 
 private:

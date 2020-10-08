@@ -38,7 +38,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\test\forque_tests.cpp" />
     <ClCompile Include="..\..\src\test\tag_tests.cpp" />
-    <ClCompile Include="..\..\src\test\runque_queue_tests.cpp" />
+    <ClCompile Include="..\..\src\test\runque_tests.cpp" />
     <ClCompile Include="..\..\src\test\sync_wait_tests.cpp" />
     <ClCompile Include="..\..\src\test\task_tests.cpp" />
     <ClCompile Include="..\..\src\test\mutex_tests.cpp" />

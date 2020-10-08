@@ -214,6 +214,11 @@ namespace detail {
             view.next(), std::move(value), std::move(guard));
       }
       else {
+        /*if (view.root()) {
+          co_return co_await reserve_child(
+              view, std::move(value), std::move(guard));
+        }
+        else*/
         if (view.last()) {
           co_return co_await add_sibling(std::move(value));
         }
@@ -407,20 +412,33 @@ namespace detail {
         sink(guard_parent);
 
         co_await activate_segment(next_pos);
-        co_return;
       }
-
-      if constexpr (!tag_traits<level_tag_type>::is_root) {
-        auto parent = parent_;
-
-        auto version = get_version();
-        auto tag = tag_;
-
-        sink(guard_parent);
-        sink(guard_this);
-
-        co_await parent->remove_child(tag, version);
+      else {
+        if constexpr (tag_traits<level_tag_type>::is_static) {
+          if constexpr (!tag_traits<level_tag_type>::is_root) {
+            co_await clean_parent(std::move(guard_parent),
+                                  std::move(guard_this));
+          }
+        }
+        else {
+          if (tag_.size() != 0) {
+            co_await clean_parent(std::move(guard_parent),
+                                  std::move(guard_this));
+          }
+        }
       }
+    }
+
+    task<> clean_parent(mutex_guard&& guard_parent, mutex_guard&& guard_this) {
+      auto parent = parent_;
+
+      auto version = get_version();
+      auto tag = tag_;
+
+      sink(guard_parent);
+      sink(guard_this);
+
+      co_await parent->remove_child(tag, version);
     }
 
     inline std::uint64_t get_version() {

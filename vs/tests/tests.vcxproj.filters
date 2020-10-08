@@ -24,7 +24,7 @@
     <ClCompile Include="..\..\src\test\forque_tests.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\test\runque_queue_tests.cpp">
+    <ClCompile Include="..\..\src\test\runque_tests.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

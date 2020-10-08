@@ -45,7 +45,7 @@ struct custom_hash_compare {
   bool initialized{false};
 };
 
-static_assert(frq::stag_t<counted, int>::size == 2);
+static_assert(frq::stag_t<counted, int>::size_v == 2);
 
 TEST(stag_constructor_tests, direct_move_construct) {
   counted_guard guard{};
@@ -182,6 +182,12 @@ TEST_F(stag_view_tests, first_view_last) {
   EXPECT_FALSE(view.last());
 }
 
+TEST_F(stag_view_tests, first_view_root) {
+  auto view = frq::view(tag_);
+
+  EXPECT_TRUE(view.root());
+}
+
 TEST_F(stag_view_tests, last_view_key) {
   test_sview<1> view{tag_};
 
@@ -205,6 +211,12 @@ TEST_F(stag_view_tests, last_view_last) {
   test_sview<1> view{tag_};
 
   EXPECT_TRUE(view.last());
+}
+
+TEST_F(stag_view_tests, last_view_root) {
+  test_sview<1> view{tag_};
+
+  EXPECT_FALSE(view.root());
 }
 
 TEST(dtag_node_make_tests, construct) {
@@ -377,6 +389,12 @@ TEST_F(dtag_view_tests, first_view_last) {
   EXPECT_FALSE(view.last());
 }
 
+TEST_F(dtag_view_tests, first_view_root) {
+  auto view = frq::view(tag_);
+
+  EXPECT_TRUE(view.root());
+}
+
 TEST_F(dtag_view_tests, last_view_key) {
   test_dview view{tag_, 1};
 
@@ -402,6 +420,12 @@ TEST_F(dtag_view_tests, last_view_last) {
   test_dview view{tag_, 1};
 
   EXPECT_TRUE(view.last());
+}
+
+TEST_F(dtag_view_tests, last_view_root) {
+  test_dview view{tag_, 1};
+
+  EXPECT_FALSE(view.root());
 }
 
 static_assert(frq::tag_view_traits<test_sview<0>>::is_static);
