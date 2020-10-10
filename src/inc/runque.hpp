@@ -2,6 +2,7 @@
 
 #include "mutex.hpp"
 #include "task.hpp"
+#include "utility.hpp"
 
 #include <concepts>
 #include <optional>
@@ -214,10 +215,8 @@ namespace detail {
     using value_type = Ty;
 
   public:
-    inline runque_awaitable() noexcept = default;
-    explicit inline runque_awaitable(value_type&& result)
-        : result_{result} {
-    }
+    inline runque_awaitable(mutex& lock) noexcept
+        : guard_{lock, std::adopt_lock} {};
 
     inline bool await_ready() noexcept {
       return false;
@@ -225,6 +224,7 @@ namespace detail {
 
     inline void await_suspend(coro_handle waiter) noexcept {
       waiter_ = waiter;
+      sink(guard_);
     }
 
     inline value_type await_resume() & noexcept(
@@ -238,8 +238,9 @@ namespace detail {
       return *result_;
     }
 
-    inline void set_next(runque_awaitable* next) noexcept {
+    inline runque_awaitable* set_next(runque_awaitable* next) noexcept {
       next_ = next;
+      return this;
     }
 
     inline runque_awaitable* get_next() const noexcept {
@@ -260,6 +261,8 @@ namespace detail {
     }
 
   private:
+    mutex_guard guard_;
+
     std::optional<value_type> result_;
     coro_handle waiter_;
 
@@ -295,18 +298,14 @@ public:
   runque& operator=(runque&&) = delete;
 
   inline get_type get() noexcept {
-    detail::runque_awaitable<value_type> awaitable{};
+    co_await mutex_.lock();
+    awaitable_type awaitable{mutex_};
 
-    {
-      co_await mutex_.lock();
-      mutex_guard guard{mutex_, std::adopt_lock};
-
-      if (!items_.empty()) {
-        co_return items_.pop();
-      }
-
-      push_waiter(awaitable);
+    if (!items_.empty()) {
+      co_return items_.pop();
     }
+
+    waiters_ = awaitable.set_next(waiters_);
 
     co_return co_await awaitable;
   }
@@ -354,11 +353,6 @@ public:
   }
 
 private:
-  inline void push_waiter(awaitable_type& waiter) noexcept {
-    waiter.set_next(waiters_);
-    waiters_ = &waiter;
-  }
-
   inline awaitable_type* pop_waiter() noexcept {
     auto awaken{waiters_};
     waiters_ = awaken->get_next();
