@@ -7,20 +7,20 @@
 #include <string>
 
 using item_type = float;
-using runque_type =
-    frq::make_runque_t<frq::fifo_order,
-                       frq::coro_thread_model,
-                       frq::retainment<item_type>,
-                       std::allocator<frq::retainment<item_type>>>;
+
+using reservation_type = frq::reservation<item_type>;
+using retainment_type = frq::retainment<item_type>;
+
+using runque_type = frq::make_runque_t<frq::fifo_order,
+                                       frq::coro_thread_model,
+                                       retainment_type,
+                                       std::allocator<retainment_type>>;
 
 using static_tag = frq::stag_t<int, float>;
 using static_queue = frq::forque<item_type, runque_type, static_tag>;
 
 using dynamic_tag = frq::dtag<>;
 using dynamic_queue = frq::forque<item_type, runque_type, dynamic_tag>;
-
-using reservation_type = frq::reservation<item_type>;
-using retainment_type = frq::retainment<item_type>;
 
 template<typename Ty>
 struct is_task : std::false_type {};
