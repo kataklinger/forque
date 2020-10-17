@@ -139,6 +139,10 @@ public:
 
   inline decltype(auto) execute() {
     handle_.resume();
+    return wait();
+  }
+
+  inline decltype(auto) wait() {
     completion_.wait();
     return handle_.promise().result();
   }
@@ -146,6 +150,10 @@ public:
   inline void swap(sync_waited & other) noexcept {
     std::swap(handle_, other.handle_);
     std::swap(completion_, other.completion_);
+  }
+
+  inline handle_type const& get_handle() const noexcept {
+    return handle_;
   }
 
 private:
