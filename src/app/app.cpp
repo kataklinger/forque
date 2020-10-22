@@ -1,4 +1,6 @@
 
+#include "pool.hpp"
+
 #include "../inc/forque.hpp"
 #include "../inc/sync_wait.hpp"
 
@@ -42,40 +44,73 @@ tag_type generate_tag(std::mt19937& rng) {
   return tag_type{begin(tag_values), end(tag_values)};
 }
 
-frq::task<> produce(queue_type& queue) {
+frq::task<> produce(queue_type& queue, int no) {
   std::mt19937 rng(std::random_device{}());
 
-  while (true) {
+  for (int i = 0; i < 1000; ++i) {
     auto tag = generate_tag(rng);
     auto item = co_await queue.reserve(tag);
 
-    co_await item.release({tag, rng()});
+    auto value = rng();
+    printf("[producer %d] < %d\n", no, value);
+
+    co_await item.release({tag, value});
+
+    co_await yield();
   }
 }
 
-frq::task<> consume(queue_type& queue) {
+std::atomic<int> cnt;
+
+frq::task<> consume(queue_type& queue, int no) {
   while (true) {
     auto item = co_await queue.get();
+
+    printf("[consumer %d] [%d] < %d\n", no, ++cnt, item.value().value_);
+
     co_await item.finalize();
+
+    co_await yield();
   }
 }
+
+struct task_entry {
+public:
+  inline task_entry(frq::task<>&& target)
+      : target_{std::move(target)}
+      , wrapped_{frq::make_sync_wait(target_)} {
+  }
+
+  inline task_entry(task_entry&& other) = delete;
+
+  frq::task<> target_;
+  frq::sync_waited<> wrapped_;
+};
 
 int main() {
   queue_type queue;
 
+  std::list<task_entry> tasks;
   std::vector<std::thread> workers;
 
-  for (size_t i = 0; i < 1; i++) {
-    workers.emplace_back([&queue] { frq::sync_wait(consume(queue)); });
+  tasks.emplace_back(consume(queue, 0));
+  tasks.emplace_back(consume(queue, 1));
+  tasks.emplace_back(produce(queue, 2));
+  tasks.emplace_back(produce(queue, 3));
+
+  for (auto& task : tasks) {
+    pool_enqueue(task.wrapped_.get_handle());
   }
 
-  for (size_t i = 0; i < 2; i++) {
-    workers.emplace_back([&queue] { frq::sync_wait(produce(queue)); });
+  for (int i = 0; i < 2; ++i) {
+    workers.emplace_back(pool_loop);
+  }
+
+  for (auto& task : tasks) {
+    task.wrapped_.wait();
   }
 
   for (auto& worker : workers) {
     worker.join();
   }
-
-  std::cout << "Hello World!\n";
 }

@@ -89,11 +89,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\app\app.cpp" />
+    <ClCompile Include="..\..\src\app\pool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\forque.vcxproj">
       <Project>{fa4499f0-9e2d-4650-9c82-a316908b4db5}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\app\pool.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
