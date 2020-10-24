@@ -18,10 +18,18 @@ public:
   void enqueue(coro_handle const& yielder);
   void run_next();
 
+  void stop();
+
+  bool is_stopped() const noexcept {
+    return stopped_.load(std::memory_order_acquire);
+  }
+
 private:
   std::mutex lock_;
-  std::queue<coro_handle> waiters_;
   std::condition_variable cond_;
+  std::atomic<bool> stopped_{false};
+
+  std::queue<coro_handle> waiters_;
 };
 
 class pool {
@@ -73,7 +81,9 @@ public:
   pool& operator=(pool&&) = delete;
 
   void schedule(frq::task<>&& task);
-  void join();
+
+  void wait();
+  void stop();
 
   inline yield_awaitable yield() noexcept {
     return yield_awaitable{*this};

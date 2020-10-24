@@ -13,7 +13,7 @@ using tag_type = frq::dtag<>;
 
 struct item {
   tag_type tag_;
-  unsigned int value_;
+  int value_;
 };
 
 using reservation_type = frq::reservation<item>;
@@ -46,12 +46,13 @@ tag_type generate_tag(std::mt19937& rng) {
 
 frq::task<> produce(pool& p, queue_type& queue, int no) {
   std::mt19937 rng(std::random_device{}());
+  std::uniform_int_distribution<> item_value_dist(1000, 9999);
 
   for (int i = 0; i < 1000; ++i) {
     auto tag = generate_tag(rng);
     auto item = co_await queue.reserve(tag);
 
-    auto value = rng();
+    auto value = static_cast<int>(item_value_dist(rng));
     printf("[producer %d] < %d\n", no, value);
 
     co_await item.release({tag, value});
@@ -60,13 +61,13 @@ frq::task<> produce(pool& p, queue_type& queue, int no) {
   }
 }
 
-std::atomic<int> cnt;
+std::atomic<int> consumed{0};
 
 frq::task<> consume(pool& p, queue_type& queue, int no) {
   while (true) {
     auto item = co_await queue.get();
 
-    printf("[consumer %d] [%d] < %d\n", no, ++cnt, item.value().value_);
+    printf("[consumer %d] [%d] < %d\n", no, ++consumed, item.value().value_);
 
     co_await item.finalize();
 
@@ -84,5 +85,7 @@ int main() {
   p.schedule(produce(p, queue, 2));
   p.schedule(produce(p, queue, 3));
 
-  p.join();
+  p.wait();
+
+  p.stop();
 }

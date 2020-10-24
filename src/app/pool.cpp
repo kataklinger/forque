@@ -16,13 +16,26 @@ void run_queue::enqueue(coro_handle const& yielder) {
 
 void run_queue::run_next() {
   lock_type guard{lock_};
-  cond_.wait(guard, [this] { return !waiters_.empty(); });
+  cond_.wait(guard, [this] {
+    return !waiters_.empty() || stopped_.load(std::memory_order_relaxed);
+  });
 
-  auto next = waiters_.front();
-  waiters_.pop();
-  guard.unlock();
+  if (!stopped_) {
+    auto next = waiters_.front();
+    waiters_.pop();
+    guard.unlock();
 
-  next.resume();
+    next.resume();
+  }
+}
+
+void run_queue::stop() {
+  {
+    lock_type guard{lock_};
+    stopped_ = true;
+  }
+
+  cond_.notify_all();
 }
 
 void pool::yield_awaitable::await_suspend(
@@ -35,7 +48,7 @@ pool::pool(std::uint32_t size) {
 
   for (std::uint32_t i = 0; i < size; ++i) {
     workers_.emplace_back([this] {
-      while (true) {
+      while (!ready_.is_stopped()) {
         ready_.run_next();
       }
     });
@@ -47,10 +60,14 @@ void pool::schedule(frq::task<>&& task) {
   ready_.enqueue(entry.wrapped_.get_handle());
 }
 
-void pool::join() {
+void pool::wait() {
   for (auto& task : tasks_) {
     task.wrapped_.wait();
   }
+}
+
+void pool::stop() {
+  ready_.stop();
 
   for (auto& worker : workers_) {
     worker.join();
