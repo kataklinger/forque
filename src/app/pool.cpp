@@ -6,49 +6,53 @@
 #include <mutex>
 #include <queue>
 
-class run_queue {
-private:
-  using lock_type = std::unique_lock<std::mutex>;
-
-public:
-  void enqueue(coro_handle const& yielder) {
-    lock_type guard{lock_};
-    waiters_.push(yielder);
-    if (waiters_.size() == 1) {
-      cond_.notify_one();
-    }
+void run_queue::enqueue(coro_handle const& yielder) {
+  lock_type guard{lock_};
+  waiters_.push(yielder);
+  if (waiters_.size() == 1) {
+    cond_.notify_one();
   }
+}
 
-  void run_next() {
-    lock_type guard{lock_};
-    cond_.wait(guard, [this] { return !waiters_.empty(); });
+void run_queue::run_next() {
+  lock_type guard{lock_};
+  cond_.wait(guard, [this] { return !waiters_.empty(); });
 
-    auto next = waiters_.front();
-    waiters_.pop();
-    guard.unlock();
+  auto next = waiters_.front();
+  waiters_.pop();
+  guard.unlock();
 
-    next.resume();
-  }
+  next.resume();
+}
 
-private:
-  std::mutex lock_;
-  std::queue<coro_handle> waiters_;
-  std::condition_variable cond_;
-};
-
-run_queue global_run;
-
-void yield_awaitable::await_suspend(
+void pool::yield_awaitable::await_suspend(
     std::experimental::coroutine_handle<> const& yielder) const {
-  global_run.enqueue(yielder);
+  pool_->ready_.enqueue(yielder);
 }
 
-void pool_enqueue(coro_handle const& yielder) {
-  global_run.enqueue(yielder);
+pool::pool(std::uint32_t size) {
+  workers_.reserve(size);
+
+  for (std::uint32_t i = 0; i < size; ++i) {
+    workers_.emplace_back([this] {
+      while (true) {
+        ready_.run_next();
+      }
+    });
+  }
 }
 
-void pool_loop() {
-  while (true) {
-    global_run.run_next();
+void pool::schedule(frq::task<>&& task) {
+  auto& entry = tasks_.emplace_back(std::move(task));
+  ready_.enqueue(entry.wrapped_.get_handle());
+}
+
+void pool::join() {
+  for (auto& task : tasks_) {
+    task.wrapped_.wait();
+  }
+
+  for (auto& worker : workers_) {
+    worker.join();
   }
 }
