@@ -20,7 +20,7 @@ public:
 
   void stop();
 
-  bool is_stopped() const noexcept {
+  inline bool is_stopped() const noexcept {
     return stopped_.load(std::memory_order_acquire);
   }
 

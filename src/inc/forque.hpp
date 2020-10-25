@@ -53,6 +53,10 @@ public:
     return handle_->value();
   }
 
+  inline value_type const& value() const noexcept {
+    return handle_->value();
+  }
+
 private:
   detail::item_handle_ptr<value_type> handle_;
 };
