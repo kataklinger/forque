@@ -33,6 +33,7 @@
     <ClInclude Include="..\src\inc\runque.hpp">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\inc\tag_stream.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\lib\mutex.cpp">

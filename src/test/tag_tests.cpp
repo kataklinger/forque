@@ -1,9 +1,12 @@
 
 #include "../inc/tag.hpp"
+#include "../inc/tag_stream.hpp"
 
 #include "counted.hpp"
 
 #include "gtest/gtest.h"
+
+#include <sstream>
 
 namespace std {
 template<>
@@ -434,3 +437,21 @@ static_assert(frq::tag_view_traits<test_sview<1>>::is_last);
 
 static_assert(!frq::tag_view_traits<test_dview>::is_static);
 static_assert(!frq::tag_view_traits<test_dview>::is_last);
+
+TEST(stag_stream_tests, format) {
+  frq::stag<2, int, int> tag{frq::construct_tag_default, 1, 2};
+
+  std::stringstream stream;
+  stream << tag;
+
+  EXPECT_EQ("/1/2", stream.str());
+}
+
+TEST(dtag_stream_tests, format) {
+  frq::dtag<> tag{frq::construct_tag_default, 1, 2};
+
+  std::stringstream stream;
+  stream << tag;
+
+  EXPECT_EQ("/1/2", stream.str());
+}

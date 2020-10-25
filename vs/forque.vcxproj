@@ -17,6 +17,7 @@
     <ClInclude Include="..\src\inc\runque.hpp" />
     <ClInclude Include="..\src\inc\sdefs.hpp" />
     <ClInclude Include="..\src\inc\sync_wait.hpp" />
+    <ClInclude Include="..\src\inc\tag_stream.hpp" />
     <ClInclude Include="..\src\inc\task.hpp" />
     <ClInclude Include="..\src\inc\utility.hpp" />
   </ItemGroup>

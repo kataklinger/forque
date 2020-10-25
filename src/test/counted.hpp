@@ -61,6 +61,10 @@ public:
   counted& operator=(counted&&) = delete;
 };
 
+inline std::string to_string(counted const& /*unused*/) {
+  return std::string{"{}"};
+}
+
 class counted_guard {
 public:
   inline counted_guard() noexcept {

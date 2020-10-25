@@ -5,6 +5,7 @@
 #include <cassert>
 #include <concepts>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -98,6 +99,7 @@ public:
 
   virtual std::size_t hash() const noexcept = 0;
   virtual bool equal(dtag_node const& other) const noexcept = 0;
+  virtual std::string get_string() const = 0;
 };
 
 using dtag_node_ptr = std::shared_ptr<dtag_node>;
@@ -133,6 +135,11 @@ namespace detail {
       auto other_typed = dynamic_cast<dtag_node_impl const*>(&other);
       return other_typed != nullptr &&
              hash_cmp_.equal_to(value_, other_typed->value_);
+    }
+
+    std::string get_string() const {
+      using namespace std;
+      return to_string(value_);
     }
 
     inline Ty const& value() const override {
@@ -176,6 +183,10 @@ public:
 
   inline std::size_t hash() const noexcept {
     return tag_node_->hash();
+  }
+
+  inline std::string get_string() const {
+    return tag_node_->get_string();
   }
 
   inline bool operator==(dtag_value const& rhs) const noexcept {
