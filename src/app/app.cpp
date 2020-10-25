@@ -84,7 +84,7 @@ frq::task<> produce(pool& p, queue_type& queue, int no) {
   std::mt19937 rng(std::random_device{}());
   std::uniform_int_distribution<> item_value_dist(0, 9999);
 
-  for (int i = 0; i < 10000; ++i) {
+  for (int i = 0; i < 100000; ++i) {
     auto count = ++produced;
 
     auto tag = generate_tag(rng);
@@ -125,11 +125,13 @@ int main() {
 
   p.schedule(consume(p, queue, 0));
   p.schedule(consume(p, queue, 1));
+  p.schedule(consume(p, queue, 3));
+  p.schedule(consume(p, queue, 4));
 
-  p.schedule(produce(p, queue, 2));
-  p.schedule(produce(p, queue, 3));
-  p.schedule(produce(p, queue, 4));
   p.schedule(produce(p, queue, 5));
+  p.schedule(produce(p, queue, 6));
+  p.schedule(produce(p, queue, 7));
+  p.schedule(produce(p, queue, 8));
 
   p.wait();
 
