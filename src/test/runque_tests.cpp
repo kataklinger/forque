@@ -221,6 +221,22 @@ TEST_F(runque_single_threaded_empty_tests, get_from_empty) {
   EXPECT_FALSE(result.has_value());
 }
 
+class runque_single_threaded_interrupted
+    : public runque_single_threaded_empty_tests {
+protected:
+  void SetUp() override {
+    runque_.interrupt();
+  }
+};
+
+TEST_F(runque_single_threaded_interrupted, get) {
+  EXPECT_THROW(runque_.get(), frq::interrupted);
+}
+
+TEST_F(runque_single_threaded_interrupted, put) {
+  EXPECT_THROW(runque_.put(1, 1), frq::interrupted);
+}
+
 class runque_single_threaded_nonempty_tests : public testing::Test {
 protected:
   void SetUp() override {
@@ -298,4 +314,29 @@ TEST_F(runque_coro_empty_tests, empalce_before_get) {
   test_item result{frq::sync_wait(runque_.get())};
 
   EXPECT_EQ(expected, result);
+}
+
+TEST_F(runque_coro_empty_tests, get_before_interrupt) {
+  auto getter = [this]() -> frq::task<> {
+    EXPECT_THROW(co_await runque_.get(), frq::interrupted);
+  }();
+
+  std::thread{[&getter]() { getter.start(); }}.join();
+
+  frq::sync_wait(runque_.interrupt());
+}
+
+TEST_F(runque_coro_empty_tests, interrupt_before_get) {
+  frq::sync_wait(runque_.interrupt());
+  EXPECT_THROW(frq::sync_wait(runque_.get()), frq::interrupted);
+}
+
+TEST_F(runque_coro_empty_tests, interrupt_before_put) {
+  frq::sync_wait(runque_.interrupt());
+  EXPECT_THROW(frq::sync_wait(runque_.put({1, 1})), frq::interrupted);
+}
+
+TEST_F(runque_coro_empty_tests, interrupt_before_emplace) {
+  frq::sync_wait(runque_.interrupt());
+  EXPECT_THROW(frq::sync_wait(runque_.put(1, 1)), frq::interrupted);
 }

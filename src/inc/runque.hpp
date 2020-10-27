@@ -5,7 +5,9 @@
 #include "utility.hpp"
 
 #include <concepts>
+#include <exception>
 #include <optional>
+#include <variant>
 
 #include <deque>
 #include <queue>
@@ -13,7 +15,15 @@
 
 namespace frq {
 template<typename Ty>
-concept runnable = std::is_nothrow_move_constructible_v<Ty>;
+concept runnable =
+    std::is_nothrow_move_constructible_v<Ty> && !std::is_reference_v<Ty>;
+
+class interrupted : public std::exception {
+public:
+  interrupted()
+      : exception("runqueue stopped") {
+  }
+};
 
 namespace detail {
   template<typename Queue, typename Alloc>
@@ -186,7 +196,11 @@ public:
   runque& operator=(runque const&) = delete;
   runque& operator=(runque&&) = delete;
 
-  inline get_type get() noexcept {
+  inline get_type get() {
+    if (interrupted_) {
+      throw interrupted{};
+    }
+
     if (!items_.empty()) {
       return items_.pop();
     }
@@ -195,16 +209,29 @@ public:
   }
 
   inline void put(value_type&& value) {
+    if (interrupted_) {
+      throw interrupted{};
+    }
+
     items_.push(std::move(value));
   }
 
   template<typename... Tys>
   requires(std::is_constructible_v<value_type, Tys...>) inline void put(
       Tys&&... args) {
+    if (interrupted_) {
+      throw interrupted{};
+    }
+
     items_.push(std::forward<Tys>(args)...);
   }
 
+  inline void interrupt() noexcept {
+    interrupted_ = true;
+  }
+
 private:
+  bool interrupted_{false};
   queue_type items_;
 };
 
@@ -227,15 +254,12 @@ namespace detail {
       sink(guard_);
     }
 
-    inline value_type await_resume() & noexcept(
-        std::is_nothrow_copy_constructible_v<value_type>) {
-      assert(!!result_);
-      return std::move(*result_);
-    }
-
-    inline value_type await_resume() && noexcept {
-      assert(!!result_);
-      return *result_;
+    inline value_type& await_resume() & {
+      switch (result_.index()) {
+      case 1: std::rethrow_exception(get<1>(result_));
+      case 2: return get<2>(result_);
+      default: throw std::logic_error{"invalid coroutine result"};
+      }
     }
 
     inline runque_awaitable* set_next(runque_awaitable* next) noexcept {
@@ -247,23 +271,33 @@ namespace detail {
       return next_;
     }
 
-    inline void resume(value_type&& result) {
-      assert(!result_);
-      result_ = std::move(result);
+    inline void resume_result(value_type&& result) {
+      assert(result_.index() == 0);
+
+      result_.template emplace<2>(std::move(result));
       waiter_.resume();
     }
 
     template<typename... Tys>
-    inline void resume(Tys&&... args) {
-      assert(!result_);
-      result_.emplace(std::forward<Tys>(args)...);
+    inline void resume_result(Tys&&... args) {
+      assert(result_.index() == 0);
+
+      result_.template emplace<2>(std::forward<Tys>(args)...);
+      waiter_.resume();
+    }
+
+    inline void resume_exception(std::exception_ptr const& exception) {
+      assert(exception != nullptr);
+      assert(result_.index() == 0);
+
+      result_.template emplace<1>(std::move(exception));
       waiter_.resume();
     }
 
   private:
     mutex_guard guard_;
 
-    std::optional<value_type> result_;
+    std::variant<std::monostate, std::exception_ptr, value_type> result_;
     coro_handle waiter_;
 
     runque_awaitable* next_{nullptr};
@@ -301,13 +335,17 @@ public:
     co_await mutex_.lock();
     awaitable_type awaitable{mutex_};
 
+    if (interrupted_) {
+      throw interrupted{};
+    }
+
     if (!items_.empty()) {
       co_return items_.pop();
     }
 
     waiters_ = awaitable.set_next(waiters_);
 
-    co_return co_await awaitable;
+    co_return std::move(co_await awaitable);
   }
 
   inline task<> put(value_type&& value) {
@@ -316,6 +354,10 @@ public:
     {
       co_await mutex_.lock();
       mutex_guard guard{mutex_, std::adopt_lock};
+
+      if (interrupted_) {
+        throw interrupted{};
+      }
 
       if (waiters_ == nullptr) {
         items_.push(std::move(value));
@@ -326,7 +368,7 @@ public:
     }
 
     if (awaken != nullptr) {
-      awaken->resume(std::move(value));
+      awaken->resume_result(std::move(value));
     }
   }
 
@@ -339,6 +381,10 @@ public:
       co_await mutex_.lock();
       mutex_guard guard{mutex_, std::adopt_lock};
 
+      if (interrupted_) {
+        throw interrupted{};
+      }
+
       if (waiters_ == nullptr) {
         items_.push(std::forward<Tys>(args)...);
       }
@@ -348,7 +394,26 @@ public:
     }
 
     if (awaken != nullptr) {
-      awaken->resume(std::forward<Tys>(args)...);
+      awaken->resume_result(std::forward<Tys>(args)...);
+    }
+  }
+
+  inline task<> interrupt() noexcept {
+    awaitable_type* waiters{nullptr};
+
+    {
+      co_await mutex_.lock();
+      mutex_guard guard{mutex_, std::adopt_lock};
+
+      interrupted_ = true;
+      waiters = std::exchange(waiters_, nullptr);
+    }
+
+    auto exception = std::make_exception_ptr(interrupted{});
+    while (waiters != nullptr) {
+      auto next = waiters->get_next();
+      waiters->resume_exception(exception);
+      waiters = next;
     }
   }
 
@@ -363,6 +428,8 @@ private:
 private:
   awaitable_type* waiters_{nullptr};
   queue_type items_;
+
+  bool interrupted_{false};
 
   mutex mutex_;
 };
