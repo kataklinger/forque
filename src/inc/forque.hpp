@@ -200,6 +200,10 @@ namespace detail {
       co_await mutex_.lock();
       mutex_guard guard{mutex_, std::adopt_lock};
 
+      if (interrupted_) {
+        throw frq::interrupted{};
+      }
+
       return co_await reserve(
           std::move(view), std::move(value), std::move(guard));
     }
@@ -235,11 +239,6 @@ namespace detail {
             view.next(), std::move(value), std::move(guard));
       }
       else {
-        /*if (view.root()) {
-          co_return co_await reserve_child(
-              view, std::move(value), std::move(guard));
-        }
-        else*/
         if (view.last()) {
           co_return co_await add_sibling(std::move(value));
         }
