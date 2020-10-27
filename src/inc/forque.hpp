@@ -135,6 +135,10 @@ namespace detail {
         return !children_.empty();
       }
 
+      inline bool empty() const noexcept {
+        return siblings_.empty() && children_.empty();
+      }
+
       sibling_list siblings_;
       children_map children_;
       std::uint64_t version_{0};
@@ -198,6 +202,19 @@ namespace detail {
 
       return co_await reserve(
           std::move(view), std::move(value), std::move(guard));
+    }
+
+    task<> interrupt() noexcept {
+      co_await mutex_.lock();
+      mutex_guard guard{mutex_, std::adopt_lock};
+
+      if (!interrupted_) {
+        interrupted_ = true;
+
+        if (segments_.front().empty()) {
+          co_await runque_->interrupt();
+        }
+      }
     }
 
   private:
@@ -423,11 +440,21 @@ namespace detail {
             co_await clean_parent(std::move(guard_parent),
                                   std::move(guard_this));
           }
+          else {
+            if (interrupted_) {
+              co_await runque_->interrupt();
+            }
+          }
         }
         else {
           if (tag_.size() != 0) {
             co_await clean_parent(std::move(guard_parent),
                                   std::move(guard_this));
+          }
+          else {
+            if (interrupted_) {
+              co_await runque_->interrupt();
+            }
           }
         }
       }
@@ -469,6 +496,8 @@ namespace detail {
 
     level_tag_type tag_;
     segment_list segments_;
+
+    bool interrupted_{false};
 
     template<typename, taglike, runlike, typename>
     friend class chain;
@@ -535,6 +564,10 @@ public:
 
   task<retainment_type> get() noexcept {
     return runque_.get();
+  }
+
+  task<> interrupt() noexcept {
+    return root_.interrupt();
   }
 
 private:
