@@ -2,6 +2,8 @@
 
 The goal of "forque" structure in this library is to allow items to be scheduled for processing based on hieratical tags attached to them. Forque ensures that at most one item is processed at a time for all tags related to the item’s tag, while respecting reserved order of related items.
 
+![forque structure](https://user-images.githubusercontent.com/42535720/98058027-0c6cd300-1e44-11eb-8303-5a5ebdc70bea.png)
+
 Structure of tag can be symmetric or static. Static tags have depth and types of each level are defined at compile-time. For dynamic tags depth is not defined, and types are defined in run-time and can be different even for the children of the same tag.
 
 | Level: | 1 | 2 | 3 |
