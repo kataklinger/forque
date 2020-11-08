@@ -1,6 +1,6 @@
 # About Forque
 
-The goal of "forque" structure in this library is to allow items to be scheduled for processing based on hieratical tags attached to them. Forque ensures that at most one item is processed at a time for all tags related to the item’s tag, while respecting reserved order of related items.
+The goal of "forque" structure in this library is to allow items to be scheduled for processing based on hieratical tags attached to them. Forque ensures that at most one item is processed at a given time for all tags related to the item’s own tag, while respecting relative order among related items in which they have be reserved in queue. Tags are said to be related if one of them are descendant of the other. For example tags `1/2` and `1/2/3` are related while tags `1/2/1` and `1/2/3` are not related. 
 
 ![forque structure](https://user-images.githubusercontent.com/42535720/98058027-0c6cd300-1e44-11eb-8303-5a5ebdc70bea.png)
 
