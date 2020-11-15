@@ -1,4 +1,4 @@
-# About Forque
+# Forque Library
 
 The goal of "forque" structure in this library is to allow items to be scheduled for processing based on hieratical tags attached to them. Forque ensures that at most one item is processed at a given time for all tags related to the item’s own tag, while respecting relative order among related items in which they have be reserved in queue. Tags are said to be related if one of them are descendant of the other. For example tags `1/2` and `1/2/3` are related while tags `1/2/1` and `1/2/3` are not related. 
 
@@ -42,4 +42,14 @@ While the order of related items is respected, no such guarantee exists for unre
 2.	*LIFO* - the last item made available gets served first
 3.	*Prioroty* - available item with highest user-defined priority  gets served first
 
+## Requirements
 
+Forque library is C++20 library that requires support for coroutines and concepts. Currently it is only working with Microsoft Visual C++ 14 compiler.
+
+## Using The Library
+
+Source code of example application using forque is located [here](https://github.com/kataklinger/forque/tree/master/src/app).
+
+## Documentation
+
+Documentation is available in [the wiki](https://github.com/kataklinger/forque/wiki)
