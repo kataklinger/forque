@@ -4,7 +4,7 @@ The goal of "forque" structure in this library is to allow items to be scheduled
 
 ![forque structure](https://user-images.githubusercontent.com/42535720/98058027-0c6cd300-1e44-11eb-8303-5a5ebdc70bea.png)
 
-Structure of tag can be symmetric or static. Static tags have depth and types of each level are defined at compile-time. For dynamic tags depth is not defined, and types are defined in run-time and can be different even for the children of the same tag.
+Structure of tag can be dynamic or static. Static tags have depth and types of each level are defined at compile-time. For dynamic tags depth is not defined, and types are defined in run-time and can be different even for the children of the same tag.
 
 | Level: | 0 | 1 | 2 |
 | --- | --- | --- | --- |
