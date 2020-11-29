@@ -137,7 +137,7 @@ namespace detail {
              hash_cmp_.equal_to(value_, other_typed->value_);
     }
 
-    std::string get_string() const {
+    std::string get_string() const override {
       using namespace std;
       return to_string(value_);
     }
