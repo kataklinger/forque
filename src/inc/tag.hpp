@@ -352,8 +352,12 @@ struct tag_prev {
 
 template<std::uint8_t Size, typename... Tys>
 struct tag_prev<stag<Size, Tys...>> {
-  using type =
-      std::conditional_t<(Size > 0), stag<Size - 1, Tys...>, stag<0, Tys...>>;
+  using type = stag<Size - 1, Tys...>;
+};
+
+template<typename... Tys>
+struct tag_prev<stag<0, Tys...>> {
+  using type = stag<0, Tys...>;
 };
 
 template<typename Tag>
@@ -369,10 +373,12 @@ struct etag_value_helper {
 template<std::uint8_t Size, typename... Tys>
 struct tag_key<stag<Size, Tys...>> {
   static_assert(Size <= sizeof...(Tys));
-  using type = typename std::conditional_t<
-      (Size > 0),
-      std::tuple_element<Size - 1, std::tuple<Tys...>>,
-      etag_value_helper>::type;
+  using type = std::tuple_element_t<Size - 1, std::tuple<Tys...>>;
+};
+
+template<typename... Tys>
+struct tag_key<stag<0, Tys...>> {
+  using type = etag_value_helper::type;
 };
 
 template<typename Alloc>

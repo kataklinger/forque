@@ -548,7 +548,7 @@ public:
 
   template<taglike Target>
   task<reservation_type> reserve(Target const& tag) {
-    return root_.reserve(view(tag), std::nullopt);
+    co_return co_await root_.reserve(view(tag), std::nullopt);
   }
 
   template<taglike Target>
