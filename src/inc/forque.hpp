@@ -35,7 +35,7 @@ namespace detail {
 } // namespace detail
 
 template<typename Ty>
-[[nodiscard]] class retainment {
+class [[nodiscard]] retainment {
 public:
   using value_type = Ty;
 
@@ -62,7 +62,7 @@ private:
 };
 
 template<typename Ty>
-[[nodiscard]] class reservation {
+class [[nodiscard]] reservation {
 public:
   using value_type = Ty;
 
@@ -204,7 +204,7 @@ namespace detail {
         throw frq::interrupted{};
       }
 
-      return co_await reserve(
+      co_return co_await reserve(
           std::move(view), std::move(value), std::move(guard));
     }
 
@@ -546,18 +546,18 @@ public:
   forque& operator=(forque&&) = delete;
   forque& operator=(forque const&) = delete;
 
-  template<taglike Tag>
-  task<reservation_type> reserve(Tag const& tag) {
-    return co_await root_.reserve(view(tag), {});
+  template<taglike Target>
+  task<reservation_type> reserve(Target const& tag) {
+    co_return co_await root_.reserve(view(tag), std::nullopt);
   }
 
-  template<taglike Tag>
-  task<> reserve(Tag const& tag, value_type const& value) {
+  template<taglike Target>
+  task<> reserve(Target const& tag, value_type const& value) {
     co_await root_.reserve(view(tag), value);
   }
 
-  template<taglike Tag>
-  task<> reserve(Tag const& tag, value_type&& value) {
+  template<taglike Target>
+  task<> reserve(Target const& tag, value_type&& value) {
     co_await root_.reserve(view(tag), std::move(value));
   }
 
