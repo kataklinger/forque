@@ -2,23 +2,20 @@ cmake_minimum_required(VERSION 3.18)
 
 project("forque")
 
-# Utility Functions
+# Compiler flags
 
-function(SET_TEST_COMPILE_OPTIONS TARGET_NAME)
-  if(MSVC)
-    target_compile_options(${TARGET_NAME} PRIVATE /Zc:rvalueCast /await)
-  else()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
-  endif()
-endfunction()
+  set(FRQ_LIB_COMPILER_FLAGS /W4 /Zc:rvalueCast /await)
+  set(FRQ_TEST_COMPILER_FLAGS /Zc:rvalueCast /await)
 
-function(SET_LIB_COMPILE_OPTIONS TARGET_NAME)
-  if(MSVC)
-    target_compile_options(${TARGET_NAME} PRIVATE /W4 /Zc:rvalueCast /await)
-  else()
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 
-  endif()
-endfunction()
+  set(FRQ_LIB_COMPILER_FLAGS -fcoroutines)
+  set(FRQ_TEST_COMPILER_FLAGS -fcoroutines)
+
+endif()
+
 
 # Forque Library
 
@@ -41,23 +38,25 @@ set_target_properties(forque PROPERTIES
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
 
-set_lib_compile_options(forque)
+target_compile_options(forque PRIVATE ${FRQ_LIB_COMPILER_FLAGS})
 
 # Test App
+
+find_package(Threads)
 
 add_executable(app
   ./src/app/app.cpp
   ./src/app/pool.cpp
   ./src/app/pool.hpp)
 
-target_link_libraries(app PRIVATE forque)
+target_link_libraries(app PRIVATE forque ${CMAKE_THREAD_LIBS_INIT})
 
 target_compile_features(app PUBLIC cxx_std_20)
 set_target_properties(app PROPERTIES
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
 
-set_lib_compile_options(app)
+target_compile_options(app PRIVATE ${FRQ_LIB_COMPILER_FLAGS})
 
 # GTest
 
@@ -82,7 +81,7 @@ set_target_properties(tests PROPERTIES
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
 
-set_test_compile_options(tests)
+target_compile_options(tests PRIVATE ${FRQ_TEST_COMPILER_FLAGS})
 
 include(GoogleTest)
 gtest_discover_tests(tests)
