@@ -16,7 +16,7 @@ namespace detail {
 
     template<typename Storage>
     static inline decltype(auto) get_value(Storage&& storage) {
-      return get<2>(std::forward<Storage>(storage));
+      return std::get<2>(std::forward<Storage>(storage));
     }
   };
 
@@ -26,7 +26,7 @@ namespace detail {
 
     template<typename Storage>
     static inline decltype(auto) get_value(Storage&& storage) {
-      return static_cast<Ty&>(*get<2>(storage));
+      return static_cast<Ty&>(*std::get<2>(storage));
     }
   };
 
@@ -99,7 +99,7 @@ public:
       result_.template emplace<1>(std::current_exception());
     }
 
-    inline std::experimental::suspend_always initial_suspend() noexcept {
+    inline detail::suspend_always initial_suspend() noexcept {
       return {};
     }
 
@@ -131,7 +131,7 @@ public:
 
     inline void result() {
       if (this->result_.index() == 1) {
-        std::rethrow_exception(get<1>(this->result_));
+        std::rethrow_exception(std::get<1>(this->result_));
       }
     }
   };
@@ -172,12 +172,12 @@ private:
   using handle_type = detail::coro_handle_t<promise_type>;
 
 public:
-  inline task(task && other) noexcept
+  inline task(task&& other) noexcept
       : handle_{other.handle_} {
     other.handle_ = nullptr;
   }
 
-  inline explicit task(promise_type & promise) noexcept
+  inline explicit task(promise_type& promise) noexcept
       : handle_{handle_type::from_promise(promise)} {
   }
 
@@ -205,15 +205,15 @@ public:
     return handle_.promise().set_continuation(handle);
   }
 
-  inline decltype(auto) await_resume()& {
+  inline decltype(auto) await_resume() & {
     return handle_.promise().result();
   }
 
-  inline decltype(auto) await_resume()&& {
+  inline decltype(auto) await_resume() && {
     return std::move(handle_.promise()).result();
   }
 
-  inline void swap(task & other) noexcept {
+  inline void swap(task& other) noexcept {
     std::swap(handle_, other.handle_);
   }
 

@@ -38,8 +38,7 @@ void run_queue::stop() {
   cond_.notify_all();
 }
 
-void pool::yield_awaitable::await_suspend(
-    std::experimental::coroutine_handle<> const& yielder) const {
+void pool::yield_awaitable::await_suspend(coro_handle const& yielder) const {
   pool_->ready_.enqueue(yielder);
 }
 
