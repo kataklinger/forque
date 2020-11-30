@@ -20,8 +20,8 @@ concept runnable =
 
 class interrupted : public std::exception {
 public:
-  interrupted()
-      : exception("runqueue stopped") {
+  const char* what() const noexcept override {
+    return "runqueue stopped";
   }
 };
 
@@ -256,8 +256,8 @@ namespace detail {
 
     inline value_type& await_resume() & {
       switch (result_.index()) {
-      case 1: std::rethrow_exception(get<1>(result_));
-      case 2: return get<2>(result_);
+      case 1: std::rethrow_exception(std::get<1>(result_));
+      case 2: return std::get<2>(result_);
       default: throw std::logic_error{"invalid coroutine result"};
       }
     }

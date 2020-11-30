@@ -2,13 +2,13 @@
 
 #include "../inc/sync_wait.hpp"
 #include "../inc/task.hpp"
+#include <../inc/sdefs.hpp>
 
-#include <experimental/coroutine>
 #include <list>
 #include <queue>
 #include <vector>
 
-using coro_handle = std::experimental::coroutine_handle<>;
+using coro_handle = frq::detail::coro_handle;
 
 class run_queue {
 private:

@@ -16,20 +16,20 @@
 
 using tag_type = frq::dtag<>;
 
-struct item {
+struct item_t {
   tag_type tag_;
   int value_;
 };
 
-using reservation_type = frq::reservation<item>;
-using retainment_type = frq::retainment<item>;
+using reservation_type = frq::reservation<item_t>;
+using retainment_type = frq::retainment<item_t>;
 
 using runque_type = frq::make_runque_t<frq::fifo_order,
                                        frq::coro_thread_model,
                                        retainment_type,
                                        std::allocator<retainment_type>>;
 
-using queue_type = frq::forque<item, runque_type, tag_type>;
+using queue_type = frq::forque<item_t, runque_type, tag_type>;
 
 tag_type generate_tag(std::mt19937& rng) {
   std::uniform_int_distribution<> tag_size_dist(1, 5);
@@ -99,7 +99,8 @@ frq::task<> produce(pool& p, queue_type& queue, std::size_t no) {
 
     print_producer("<<< ", value, tag, no, count);
 
-    co_await item.release({tag, value});
+    item_t x{tag, value};
+    co_await item.release(x);
   }
 
   if (--producers == 0) {

@@ -62,7 +62,7 @@ public:
       return sync_waited{*this, completion_.get_future()};
     }
 
-    std::experimental::suspend_always initial_suspend() noexcept {
+    detail::suspend_always initial_suspend() noexcept {
       return {};
     }
 
@@ -89,7 +89,7 @@ public:
     inline result_type result() {
       if constexpr (std::is_void_v<value_type>) {
         if (result_.index() == 1) {
-          std::rethrow_exception(get<1>(result_));
+          std::rethrow_exception(std::get<1>(result_));
         }
       }
       else {
@@ -110,13 +110,13 @@ private:
   using handle_type = detail::coro_handle_t<promise_type>;
 
 public:
-  inline explicit sync_waited(promise_type & promise,
-                              std::future<void> && completion) noexcept
+  inline explicit sync_waited(promise_type& promise,
+                              std::future<void>&& completion) noexcept
       : handle_{handle_type::from_promise(promise)}
       , completion_{std::move(completion)} {
   }
 
-  inline sync_waited(sync_waited && other) noexcept
+  inline sync_waited(sync_waited&& other) noexcept
       : handle_{other.handle_}
       , completion_{std::move(other.completion_)} {
     other.handle_ = nullptr;
@@ -147,7 +147,7 @@ public:
     return handle_.promise().result();
   }
 
-  inline void swap(sync_waited & other) noexcept {
+  inline void swap(sync_waited& other) noexcept {
     std::swap(handle_, other.handle_);
     std::swap(completion_, other.completion_);
   }
