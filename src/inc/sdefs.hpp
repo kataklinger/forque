@@ -5,12 +5,16 @@
 #include <experimental/coroutine>
 #define FRQ_CORO_NS std::experimental
 
+#elif __clang__
+
+#include <experimental/coroutine>
+#define FRQ_CORO_NS std::experimental
+
 #elif __GNUG__
 
 #include <coroutine>
 #define FRQ_CORO_NS std
 
-#elif __clang__
 #endif
 
 namespace frq {
