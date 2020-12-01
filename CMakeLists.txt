@@ -14,8 +14,12 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set(FRQ_LIB_COMPILER_FLAGS -fcoroutines)
   set(FRQ_TEST_COMPILER_FLAGS -fcoroutines)
 
-endif()
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 
+  set(FRQ_LIB_COMPILER_FLAGS -fcoroutines-ts -stdlib=libc++)
+  set(FRQ_TEST_COMPILER_FLAGS -fcoroutines-ts -stdlib=libc++)
+
+endif()
 
 # Forque Library
 
