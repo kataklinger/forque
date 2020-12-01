@@ -2,6 +2,7 @@
 
 #include "sdefs.hpp"
 
+#include <concepts>
 #include <future>
 #include <type_traits>
 #include <utility>
