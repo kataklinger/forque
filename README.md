@@ -44,7 +44,7 @@ While the order of related items is respected, no such guarantee exists for unre
 
 ## Requirements
 
-Forque library is C++20 library that requires support for coroutines and concepts. Currently it is only working with Microsoft Visual C++ 14 compiler.
+Forque library is C++20 library that requires support for coroutines and concepts.
 
 
 ## Documentation
