@@ -13,8 +13,7 @@ add_library(forque STATIC
   ./src/inc/mutex.hpp
   ./src/inc/sync_wait.hpp
   ./src/inc/task.hpp
-  ./src/inc/utility.hpp
-  ./src/inc/sdefs.hpp)
+  ./src/inc/utility.hpp)
 
 target_include_directories(forque PUBLIC ./src/inc)
 
