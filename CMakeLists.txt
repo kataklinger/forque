@@ -22,8 +22,6 @@ set_target_properties(forque PROPERTIES
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
 
-target_compile_options(forque PRIVATE ${FRQ_LIB_COMPILER_FLAGS})
-
 # Test App
 
 find_package(Threads)
@@ -39,8 +37,6 @@ target_compile_features(app PUBLIC cxx_std_20)
 set_target_properties(app PROPERTIES
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
-
-target_compile_options(app PRIVATE ${FRQ_LIB_COMPILER_FLAGS})
 
 # GTest
 
@@ -64,8 +60,6 @@ target_compile_features(tests PUBLIC cxx_std_20)
 set_target_properties(tests PROPERTIES
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
-
-target_compile_options(tests PRIVATE ${FRQ_TEST_COMPILER_FLAGS})
 
 include(GoogleTest)
 gtest_discover_tests(tests)
