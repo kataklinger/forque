@@ -1,16 +1,15 @@
 #pragma once
 
-#include "sdefs.hpp"
-
 #include <atomic>
 #include <cassert>
+#include <coroutine>
 #include <mutex>
 
 namespace frq {
 namespace detail {
 
   struct mxwait {
-    coro_handle waiter_;
+    std::coroutine_handle<> waiter_;
     mxwait* next_{nullptr};
   };
 
@@ -84,7 +83,7 @@ public:
       return false;
     }
 
-    inline bool await_suspend(detail::coro_handle handle) noexcept {
+    inline bool await_suspend(std::coroutine_handle<> handle) noexcept {
       entry_.waiter_ = handle;
       return !impl_->lock(entry_);
     }

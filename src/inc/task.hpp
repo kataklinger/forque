@@ -1,9 +1,8 @@
 #pragma once
 
-#include "sdefs.hpp"
-
 #include <atomic>
 #include <concepts>
+#include <coroutine>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -83,7 +82,7 @@ public:
       }
 
       inline void
-          await_suspend(detail::coro_handle_t<Derived> handle) noexcept {
+          await_suspend(std::coroutine_handle<Derived> handle) noexcept {
         if (auto& promise = handle.promise();
             promise.done_.exchange(true, std::memory_order_acq_rel)) {
           promise.continuation_.resume();
@@ -99,7 +98,7 @@ public:
       result_.template emplace<1>(std::current_exception());
     }
 
-    inline detail::suspend_always initial_suspend() noexcept {
+    inline std::suspend_always initial_suspend() noexcept {
       return {};
     }
 
@@ -107,14 +106,14 @@ public:
       return final_awaiter{};
     }
 
-    inline bool set_continuation(detail::coro_handle cont) noexcept {
+    inline bool set_continuation(std::coroutine_handle<> cont) noexcept {
       continuation_ = cont;
       return !done_.exchange(true, std::memory_order_acq_rel);
     }
 
   protected:
     storage_type result_;
-    detail::coro_handle continuation_;
+    std::coroutine_handle<> continuation_;
     std::atomic<bool> done_;
   };
 
@@ -145,9 +144,9 @@ public:
     }
 
     template<typename Tx>
-    requires(std::convertible_to<Tx&&, value_type>) void return_value(
-        Tx&&
-            value) noexcept(std::is_nothrow_constructible_v<value_type, Tx&&>) {
+      requires(std::convertible_to<Tx &&, value_type>)
+    void return_value(Tx&& value) noexcept(
+        std::is_nothrow_constructible_v<value_type, Tx&&>) {
       if constexpr (std::is_reference_v<value_type>) {
         this->result_.template emplace<2>(std::addressof(value));
       }
@@ -169,7 +168,7 @@ public:
       conditional_t<std::is_void_v<value_type>, promise_void, promise_typed>;
 
 private:
-  using handle_type = detail::coro_handle_t<promise_type>;
+  using handle_type = std::coroutine_handle<promise_type>;
 
 public:
   inline task(task&& other) noexcept
@@ -200,7 +199,7 @@ public:
     return !handle_ || handle_.done();
   }
 
-  inline bool await_suspend(detail::coro_handle handle) noexcept {
+  inline bool await_suspend(std::coroutine_handle<> handle) noexcept {
     handle_.resume();
     return handle_.promise().set_continuation(handle);
   }

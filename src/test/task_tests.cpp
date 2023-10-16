@@ -66,7 +66,7 @@ TEST(task_tests, async_start) {
       return false;
     }
 
-    inline void await_suspend(frq::detail::coro_handle continuation) noexcept {
+    inline void await_suspend(std::coroutine_handle<> continuation) noexcept {
       continuation_ = continuation;
     }
 
@@ -78,7 +78,7 @@ TEST(task_tests, async_start) {
     }
 
   private:
-    frq::detail::coro_handle continuation_;
+    std::coroutine_handle<> continuation_;
   } awaitable;
 
   auto before{false}, after{false};

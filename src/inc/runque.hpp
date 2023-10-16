@@ -249,7 +249,7 @@ namespace detail {
       return false;
     }
 
-    inline void await_suspend(coro_handle waiter) noexcept {
+    inline void await_suspend(std::coroutine_handle<> waiter) noexcept {
       waiter_ = waiter;
       sink(guard_);
     }
@@ -298,7 +298,7 @@ namespace detail {
     mutex_guard guard_;
 
     std::variant<std::monostate, std::exception_ptr, value_type> result_;
-    coro_handle waiter_;
+    std::coroutine_handle<> waiter_;
 
     runque_awaitable* next_{nullptr};
   };

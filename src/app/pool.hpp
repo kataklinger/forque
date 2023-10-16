@@ -2,20 +2,18 @@
 
 #include "../inc/sync_wait.hpp"
 #include "../inc/task.hpp"
-#include <../inc/sdefs.hpp>
 
+#include <coroutine>
 #include <list>
 #include <queue>
 #include <vector>
-
-using coro_handle = frq::detail::coro_handle;
 
 class run_queue {
 private:
   using lock_type = std::unique_lock<std::mutex>;
 
 public:
-  void enqueue(coro_handle const& yielder);
+  void enqueue(std::coroutine_handle<> const& yielder);
   void run_next();
 
   void stop();
@@ -29,7 +27,7 @@ private:
   std::condition_variable cond_;
   std::atomic<bool> stopped_{false};
 
-  std::queue<coro_handle> waiters_;
+  std::queue<std::coroutine_handle<>> waiters_;
 };
 
 class pool {
@@ -62,7 +60,7 @@ public:
       return false;
     }
 
-    void await_suspend(coro_handle const& yielder) const;
+    void await_suspend(std::coroutine_handle<> const& yielder) const;
 
     inline void await_resume() noexcept {
     }

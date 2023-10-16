@@ -1,8 +1,7 @@
 #pragma once
 
-#include "sdefs.hpp"
-
 #include <concepts>
+#include <coroutine>
 #include <future>
 #include <type_traits>
 #include <utility>
@@ -47,7 +46,7 @@ public:
       }
 
       inline void await_suspend(
-          detail::coro_handle_t<promise_type> /*unused*/) noexcept {
+          std::coroutine_handle<promise_type> /*unused*/) noexcept {
         completion_->set_value();
       }
 
@@ -63,7 +62,7 @@ public:
       return sync_waited{*this, completion_.get_future()};
     }
 
-    detail::suspend_always initial_suspend() noexcept {
+    std::suspend_always initial_suspend() noexcept {
       return {};
     }
 
@@ -72,10 +71,9 @@ public:
     }
 
     template<typename Tx = Ty>
-    requires(
-        std::same_as<std::remove_reference_t<Tx>,
-                     std::remove_reference_t<value_type>>) inline final_awaiter
-        yield_value(Tx&& value) noexcept {
+      requires(std::same_as<std::remove_reference_t<Tx>,
+                            std::remove_reference_t<value_type>>)
+    inline final_awaiter yield_value(Tx&& value) noexcept {
       result_.template emplace<2>(std::addressof(value));
       return final_awaiter{completion_};
     }
@@ -108,7 +106,7 @@ public:
   };
 
 private:
-  using handle_type = detail::coro_handle_t<promise_type>;
+  using handle_type = std::coroutine_handle<promise_type>;
 
 public:
   inline explicit sync_waited(promise_type& promise,

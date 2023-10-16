@@ -1,25 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-project("forque")
-
-# Compiler flags
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-
-  set(FRQ_LIB_COMPILER_FLAGS /W4 /Zc:rvalueCast /await)
-  set(FRQ_TEST_COMPILER_FLAGS /Zc:rvalueCast /await)
-
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-
-  set(FRQ_LIB_COMPILER_FLAGS -fcoroutines)
-  set(FRQ_TEST_COMPILER_FLAGS -fcoroutines)
-
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-
-  set(FRQ_LIB_COMPILER_FLAGS -fcoroutines-ts -stdlib=libc++)
-  set(FRQ_TEST_COMPILER_FLAGS -fcoroutines-ts -stdlib=libc++)
-
-endif()
+project("forque" CXX)
 
 # Forque Library
 
