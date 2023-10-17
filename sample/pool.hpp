@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../inc/sync_wait.hpp"
-#include "../inc/task.hpp"
+#include "sync_wait.hpp"
+#include "task.hpp"
 
 #include <coroutine>
 #include <list>

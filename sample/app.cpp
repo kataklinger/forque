@@ -1,10 +1,10 @@
 
 #include "pool.hpp"
 
-#include "../inc/sync_wait.hpp"
+#include "sync_wait.hpp"
 
-#include "../inc/forque.hpp"
-#include "../inc/tag_stream.hpp"
+#include "forque.hpp"
+#include "tag_stream.hpp"
 
 #include <iomanip>
 #include <iostream>

@@ -4,7 +4,7 @@ find_package(Threads)
 
 add_executable(app app.cpp pool.cpp)
 
-target_link_libraries(app PRIVATE forque ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(app PRIVATE forque warnings ${CMAKE_THREAD_LIBS_INIT})
 
 target_compile_features(app PRIVATE cxx_std_20)
 set_target_properties(app PROPERTIES

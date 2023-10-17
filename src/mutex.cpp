@@ -1,5 +1,5 @@
 
-#include "../inc/mutex.hpp"
+#include "mutex.hpp"
 
 bool frq::detail::mximpl::lock(mxwait& entry) noexcept {
   auto expected{free_state};
