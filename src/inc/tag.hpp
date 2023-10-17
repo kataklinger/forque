@@ -520,7 +520,7 @@ public:
     auto& values = tag_->values();
     return sub_type{alloc_type{values.get_allocator()},
                     values.begin(),
-                    values.begin() + (level_ + 1)};
+                    values.begin() + level_ + 1};
   }
 
   inline next_type next() const noexcept {
