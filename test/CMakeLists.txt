@@ -14,7 +14,8 @@ add_executable(tests
 target_link_libraries(tests PRIVATE GTest::gtest GTest::gtest_main forque)
 
 target_compile_features(tests PRIVATE cxx_std_20)
-set_target_properties(tests PROPERTIES
+set_target_properties(
+  tests PROPERTIES
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
 
