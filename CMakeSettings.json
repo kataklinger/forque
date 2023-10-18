@@ -11,9 +11,7 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "variables": [],
-      "enableMicrosoftCodeAnalysis": true,
-      "enableClangTidyCodeAnalysis": true,
-      "clangTidyChecks": "clang-analyzer-*"
+      "enableMicrosoftCodeAnalysis": true
     },
     {
       "name": "x64-Clang-Debug",

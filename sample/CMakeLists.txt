@@ -11,3 +11,6 @@ set_target_properties(
   app PROPERTIES
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
+
+include(ClangTidy)
+AddClangTidy(forque)
