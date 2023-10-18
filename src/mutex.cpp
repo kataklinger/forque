@@ -38,7 +38,7 @@ bool frq::detail::mximpl::try_lock() noexcept {
 void frq::detail::mximpl::release() {
   assert(!state_.load(std::memory_order_relaxed).is_free());
 
-  auto head = waiters_;
+  auto* head = waiters_;
   if (head == nullptr) {
     auto expected{taken_state};
 
@@ -51,9 +51,9 @@ void frq::detail::mximpl::release() {
 
     expected = state_.exchange(taken_state, std::memory_order_acquire);
 
-    auto cur = expected.get_waiter();
+    auto* cur = expected.get_waiter();
     do {
-      auto next = cur->next_;
+      auto* next = cur->next_;
       cur->next_ = head;
       head = cur;
       cur = next;
