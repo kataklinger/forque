@@ -38,3 +38,6 @@ set_target_properties(
 
 include(ClangTidy)
 AddClangTidy(forque)
+
+include(CppCheck)
+AddCppCheck(forque)

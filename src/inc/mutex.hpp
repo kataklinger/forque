@@ -72,9 +72,9 @@ class mutex {
   friend mutex_guard;
 
 public:
-  class awaitable {
+  class awaitable_base {
   public:
-    inline explicit awaitable(detail::mximpl& impl) noexcept
+    inline explicit awaitable_base(detail::mximpl& impl) noexcept
         : impl_{&impl}
         , entry_{} {
     }
@@ -88,9 +88,6 @@ public:
       return !impl_->lock(entry_);
     }
 
-    inline void await_resume() noexcept {
-    }
-
   protected:
     detail::mximpl* impl_;
 
@@ -98,9 +95,18 @@ public:
     detail::mxwait entry_;
   };
 
-  class scoped_awaitable : public awaitable {
+  class awaitable : public awaitable_base {
   public:
-    using awaitable::awaitable;
+    using awaitable_base::awaitable_base;
+
+    inline void await_resume() noexcept {
+    }
+
+  };
+
+  class scoped_awaitable : public awaitable_base {
+  public:
+    using awaitable_base::awaitable_base;
 
     [[nodiscard]] mutex_guard await_resume() noexcept;
   };

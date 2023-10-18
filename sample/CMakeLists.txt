@@ -12,5 +12,5 @@ set_target_properties(
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
 
-include(ClangTidy)
-AddClangTidy(forque)
+#include(ClangTidy)
+#AddClangTidy(app)
