@@ -331,7 +331,7 @@ public:
   runque& operator=(runque const&) = delete;
   runque& operator=(runque&&) = delete;
 
-  inline get_type get() noexcept {
+  inline get_type get() {
     co_await mutex_.lock();
     awaitable_type awaitable{mutex_};
 

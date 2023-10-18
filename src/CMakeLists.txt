@@ -36,8 +36,10 @@ set_target_properties(
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
 
-include(ClangTidy)
-AddClangTidy(forque)
+if(NOT MSVC)
+  include(ClangTidy)
+  AddClangTidy(forque)
+endif()
 
 include(CppCheck)
 AddCppCheck(forque)

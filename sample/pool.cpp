@@ -7,7 +7,7 @@
 #include <queue>
 
 void run_queue::enqueue(std::coroutine_handle<> const& yielder) {
-  lock_type const guard{lock_};
+  lock_type guard{lock_};
   waiters_.push(yielder);
   if (waiters_.size() == 1) {
     cond_.notify_one();
@@ -31,7 +31,7 @@ void run_queue::run_next() {
 
 void run_queue::stop() {
   {
-    lock_type const guard{lock_};
+    lock_type guard{lock_};
     stopped_ = true;
   }
 
