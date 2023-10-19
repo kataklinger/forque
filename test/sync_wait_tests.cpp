@@ -4,6 +4,8 @@
 
 #include "gtest/gtest.h"
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)
+
 TEST(sync_wait_tests, wait_void) {
   int count{0};
 
@@ -55,14 +57,14 @@ TEST(sync_wait_tests, wait_rvalue_ref) {
   int target{0};
 
   decltype(auto) result = frq::sync_wait(
-      [&target]() -> frq::task<int&&> { co_return std::move(target); }());
+      [&target]() -> frq::task<int&&> { co_return std::move(target); }()); // NOLINT
 
   static_assert(std::is_rvalue_reference_v<decltype(result)>);
   EXPECT_EQ(&target, &result);
 }
 
 TEST(sync_wait_tests, wait_exception) {
-   EXPECT_ANY_THROW(frq::sync_wait([]() -> frq::task<> {
+  EXPECT_ANY_THROW(frq::sync_wait([]() -> frq::task<> {
     throw std::exception();
     co_return;
   }()));
@@ -80,3 +82,5 @@ TEST(sync_wait_tests, wait_completed) {
 
   EXPECT_EQ(1, count);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)

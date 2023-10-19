@@ -12,10 +12,8 @@ set_target_properties(
   CXX_EXTENSIONS NO
   CXX_STANDARD_REQUIRED YES)
 
-if(NOT MSVC)
-  include(ClangTidy)
-  AddClangTidy(app)
-endif()
+include(ClangTidy)
+AddClangTidy(app)
 
 include(CppCheck)
 AddCppCheck(app)

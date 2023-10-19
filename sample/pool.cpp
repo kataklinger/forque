@@ -7,7 +7,7 @@
 #include <queue>
 
 void run_queue::enqueue(std::coroutine_handle<> const& yielder) {
-  lock_type guard{lock_};
+  lock_type const guard{lock_};
   waiters_.push(yielder);
   if (waiters_.size() == 1) {
     cond_.notify_one();
@@ -31,14 +31,15 @@ void run_queue::run_next() {
 
 void run_queue::stop() {
   {
-    lock_type guard{lock_};
+    lock_type const guard{lock_};
     stopped_ = true;
   }
 
   cond_.notify_all();
 }
 
-void pool::yield_awaitable::await_suspend(std::coroutine_handle<> const& yielder) const {
+void pool::yield_awaitable::await_suspend(
+    std::coroutine_handle<> const& yielder) const {
   pool_->ready_.enqueue(yielder);
 }
 

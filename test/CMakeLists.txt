@@ -21,3 +21,9 @@ set_target_properties(
 
 include(GoogleTest)
 gtest_discover_tests(tests)
+
+include(ClangTidy)
+AddClangTidy(tests)
+
+include(CppCheck)
+AddCppCheck(tests)

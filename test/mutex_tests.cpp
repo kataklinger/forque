@@ -15,6 +15,8 @@ protected:
   frq::mutex mutex_;
 };
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)
+
 TEST_F(mutex_unlocked_tests, try_lock_unlocked_mutex) {
   EXPECT_TRUE(mutex_.try_lock());
 }
@@ -41,7 +43,7 @@ TEST_F(mutex_locked_tests, unlock_mutex) {
 }
 
 TEST_F(mutex_locked_tests, guarded_unlock_mutex) {
-  { frq::mutex_guard guard(mutex_, std::adopt_lock); }
+  { frq::mutex_guard const guard(mutex_, std::adopt_lock); }
 
   EXPECT_TRUE(mutex_.try_lock());
 }
@@ -89,9 +91,11 @@ TEST_F(mutex_multithreaded_tests, mutex_raw) {
 TEST_F(mutex_multithreaded_tests, mutex_guard) {
   wrapper(8, 1000, [this]() -> frq::task<> {
     co_await mutex_.lock();
-    frq::mutex_guard guard{mutex_, std::adopt_lock};
+    frq::mutex_guard const guard{mutex_, std::adopt_lock};
 
     EXPECT_EQ(1, ++counter_);
     EXPECT_EQ(0, --counter_);
   });
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)

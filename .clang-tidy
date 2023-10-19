@@ -1,5 +1,5 @@
 ---
-Checks:          'clang-analyzer-*,clang-diagnostic-*,cppcoreguidelines-*,google-readability-*,misc-*,modernize-*,performance-*,readability-*,cert-dcl50-cpp,cert-err60-cpp,-cppcoreguidelines-avoid-do-while,-modernize-use-trailing-return-type,-readability-identifier-length,-*-magic-numbers,-cppcoreguidelines-avoid-non-const-global-variables'
+Checks:          'clang-analyzer-*,clang-diagnostic-*,cppcoreguidelines-*,google-readability-*,misc-*,modernize-*,performance-*,readability-*,cert-dcl50-cpp,cert-err60-cpp,-cppcoreguidelines-avoid-do-while,-modernize-use-trailing-return-type,-readability-identifier-length,-*-magic-numbers,-cppcoreguidelines-avoid-non-const-global-variables,-google-readability-avoid-underscore-in-googletest-name,-misc-include-cleaner,-*-non-private-member-variables-in-classes,-readability-isolate-declaration'
 WarningsAsErrors: '*'
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false

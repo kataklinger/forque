@@ -14,6 +14,8 @@ public:
       , v2_{v2} {
   }
 
+  constexpr ~test_item() = default;
+
   constexpr test_item(test_item&& item) = default;
   constexpr test_item& operator=(test_item&&) = default;
 
@@ -37,6 +39,8 @@ protected:
 
   frq::priority_runque_queue<test_item> queue_{};
 };
+
+// NOLINTBEGIN(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)
 
 TEST_F(runque_queue_priority_empty_test, is_empty_when_empty) {
   EXPECT_TRUE(queue_.empty());
@@ -286,7 +290,7 @@ TEST_F(runque_coro_empty_tests, put_before_get) {
   constexpr test_item expected{1, 1};
 
   frq::sync_wait(runque_.put({1, 1}));
-  test_item result{frq::sync_wait(runque_.get())};
+  test_item const result{frq::sync_wait(runque_.get())};
 
   EXPECT_EQ(expected, result);
 }
@@ -311,7 +315,7 @@ TEST_F(runque_coro_empty_tests, empalce_before_get) {
   constexpr test_item expected{1, 1};
 
   frq::sync_wait(runque_.put(1, 1));
-  test_item result{frq::sync_wait(runque_.get())};
+  test_item const result{frq::sync_wait(runque_.get())};
 
   EXPECT_EQ(expected, result);
 }
@@ -340,3 +344,5 @@ TEST_F(runque_coro_empty_tests, interrupt_before_emplace) {
   frq::sync_wait(runque_.interrupt());
   EXPECT_THROW(frq::sync_wait(runque_.put(1, 1)), frq::interrupted);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)

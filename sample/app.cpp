@@ -62,7 +62,7 @@ void print_producer(char const* prefix,
 
   sstream << prefix << "[producer " << std::setw(2) << no << "] > ["
           << std::setw(5) << count << " | " << std::setw(5) << value << "] ["
-          << tag << "]" << std::endl;
+          << tag << "]\n";
 
   std::cout << sstream.str();
 }
@@ -75,12 +75,12 @@ void print_consumer(char const* prefix,
 
   sstream << prefix << "[consumer " << std::setw(2) << no << "] < ["
           << std::setw(5) << count << " | " << std::setw(5)
-          << item.value().value_ << "] [" << item.value().tag_ << "]"
-          << std::endl;
+          << item.value().value_ << "] [" << item.value().tag_ << "]\n";
 
   std::cout << sstream.str();
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-reference-coroutine-parameters)
 frq::task<> produce(pool& p, queue_type& queue, std::size_t no) {
   std::mt19937 rng(std::random_device{}());
   std::uniform_int_distribution<> item_value_dist(0, 9999);
@@ -108,6 +108,7 @@ frq::task<> produce(pool& p, queue_type& queue, std::size_t no) {
   }
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-reference-coroutine-parameters)
 frq::task<> consume(pool& p, queue_type& queue, std::size_t no) {
   while (true) {
     try {

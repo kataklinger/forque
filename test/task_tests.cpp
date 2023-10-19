@@ -6,6 +6,8 @@
 
 #include "gtest/gtest.h"
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)
+
 TEST(task_tests, lazy_start) {
   auto executed{false};
 
@@ -62,7 +64,8 @@ TEST(task_tests, async_start) {
 
   class {
   public:
-    inline bool await_ready() const noexcept {
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    [[nodiscard]] inline bool await_ready() const noexcept {
       return false;
     }
 
@@ -103,3 +106,5 @@ TEST(task_tests, async_start) {
   EXPECT_TRUE(before);
   EXPECT_TRUE(after);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)

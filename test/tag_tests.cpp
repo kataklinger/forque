@@ -34,13 +34,14 @@ struct check_tag_view_types {
 
 struct custom_hash_compare {
   template<typename Ty>
-  inline std::size_t hash(Ty const& value) const noexcept {
+  [[nodiscard]] inline std::size_t hash(Ty const& value) const noexcept {
     assert(initialized);
     return std::hash<Ty>{}(value);
   }
 
   template<typename Ty>
-  inline bool equal_to(Ty const& left, Ty const& right) const noexcept {
+  [[nodiscard]] inline bool equal_to(Ty const& left,
+                                     Ty const& right) const noexcept {
     assert(initialized);
     return std::equal_to<Ty>{}(left, right);
   }
@@ -53,7 +54,7 @@ static_assert(frq::stag_t<counted, int>::size_v == 2);
 TEST(stag_constructor_tests, direct_move_construct) {
   counted_guard guard{};
   {
-    frq::stag_t<counted, int> tag{
+    frq::stag_t<counted, int> const tag{
         frq::construct_tag_default, guard.instance(), 1};
 
     EXPECT_EQ(1, counted::get_instances());
@@ -67,7 +68,8 @@ TEST(stag_constructor_tests, direct_copy_construct) {
   counted_guard guard{};
   {
     auto instance = guard.instance();
-    frq::stag_t<counted, int> tag{frq::construct_tag_default, instance, 1};
+    frq::stag_t<counted, int> const tag{
+        frq::construct_tag_default, instance, 1};
 
     EXPECT_EQ(2, counted::get_instances());
     EXPECT_EQ(1, counted::get_copies());
@@ -79,7 +81,7 @@ TEST(stag_constructor_tests, direct_copy_construct) {
 TEST(stag_constructor_tests, tuple_move_construct) {
   counted_guard guard{};
   {
-    frq::stag_t<counted, int> tag{
+    frq::stag_t<counted, int> const tag{
         std::tuple<counted, int>{guard.instance(), 1}};
 
     EXPECT_EQ(1, counted::get_instances());
@@ -92,8 +94,8 @@ TEST(stag_constructor_tests, tuple_move_construct) {
 TEST(stag_constructor_tests, tuple_copy_construct) {
   counted_guard guard{};
   {
-    std::tuple<counted, int> pack{guard.instance(), 1};
-    frq::stag_t<counted, int> tag{pack};
+    std::tuple<counted, int> const pack{guard.instance(), 1};
+    frq::stag_t<counted, int> const tag{pack};
 
     EXPECT_EQ(2, counted::get_instances());
     EXPECT_EQ(1, counted::get_copies());
@@ -107,7 +109,7 @@ TEST(stag_constructor_tests, move_construct) {
   {
     frq::stag_t<counted, int> tag1{
         frq::construct_tag_default, guard.instance(), 1};
-    frq::stag_t<counted, int> tag2{std::move(tag1)};
+    frq::stag_t<counted, int> const tag2{std::move(tag1)}; // NOLINT
 
     EXPECT_EQ(2, counted::get_instances());
     EXPECT_EQ(0, counted::get_copies());
@@ -119,9 +121,9 @@ TEST(stag_constructor_tests, move_construct) {
 TEST(stag_constructor_tests, copy_construct) {
   counted_guard guard{};
   {
-    frq::stag_t<counted, int> tag1{
+    frq::stag_t<counted, int> const tag1{
         frq::construct_tag_default, guard.instance(), 1};
-    frq::stag_t<counted, int> tag2{tag1};
+    frq::stag_t<counted, int> const tag2{tag1}; // NOLINT
 
     EXPECT_EQ(2, counted::get_instances());
     EXPECT_EQ(1, counted::get_copies());
@@ -131,7 +133,7 @@ TEST(stag_constructor_tests, copy_construct) {
 }
 
 TEST(stag_value_tests, get_value) {
-  frq::stag_t<float, int> tag{frq::construct_tag_default, 1.0F, 2};
+  frq::stag_t<float, int> const tag{frq::construct_tag_default, 1.0F, 2};
 
   EXPECT_EQ(1.0F, get<0>(tag.values()));
   EXPECT_EQ(2, get<1>(tag.values()));
@@ -192,32 +194,32 @@ TEST_F(stag_view_tests, first_view_root) {
 }
 
 TEST_F(stag_view_tests, last_view_key) {
-  test_sview<1> view{tag_};
+  test_sview<1> const view{tag_};
 
   EXPECT_EQ(2, view.key());
 }
 
 TEST_F(stag_view_tests, last_view_sub) {
-  test_sview<1> view{tag_};
+  test_sview<1> const view{tag_};
 
   auto value = get<1>(view.sub().values());
   EXPECT_EQ(2, value);
 }
 
 TEST_F(stag_view_tests, last_view_next) {
-  test_sview<1> view{tag_};
+  test_sview<1> const view{tag_};
 
   EXPECT_EQ(2, view.next().key());
 }
 
 TEST_F(stag_view_tests, last_view_last) {
-  test_sview<1> view{tag_};
+  test_sview<1> const view{tag_};
 
   EXPECT_TRUE(view.last());
 }
 
 TEST_F(stag_view_tests, last_view_root) {
-  test_sview<1> view{tag_};
+  test_sview<1> const view{tag_};
 
   EXPECT_FALSE(view.root());
 }
@@ -266,7 +268,7 @@ TEST_F(dtag_value_tests, equality_not_equal) {
 TEST(dtag_constructor_tests, direct_move_construct) {
   counted_guard guard{};
   {
-    frq::dtag<> tag{frq::construct_tag_default, guard.instance(), 1};
+    frq::dtag<> const tag{frq::construct_tag_default, guard.instance(), 1};
 
     EXPECT_EQ(1, counted::get_instances());
     EXPECT_EQ(0, counted::get_copies());
@@ -279,7 +281,7 @@ TEST(dtag_constructor_tests, direct_copy_construct) {
   counted_guard guard{};
   {
     auto instance = guard.instance();
-    frq::dtag<> tag{frq::construct_tag_default, instance, 1};
+    frq::dtag<> const tag{frq::construct_tag_default, instance, 1};
 
     EXPECT_EQ(2, counted::get_instances());
     EXPECT_EQ(1, counted::get_copies());
@@ -290,10 +292,10 @@ TEST(dtag_constructor_tests, direct_copy_construct) {
 
 TEST(dtag_constructor_tests, direct_hash_construct) {
   counted_guard guard{};
-  frq::dtag<> tag{frq::construct_tag_hash_cmp,
-                  custom_hash_compare{true},
-                  guard.instance(),
-                  1};
+  frq::dtag<> const tag{frq::construct_tag_hash_cmp,
+                        custom_hash_compare{true},
+                        guard.instance(),
+                        1};
 
   auto expected = std::hash<int>{}(1);
   EXPECT_EQ(expected, tag.values()[1].hash());
@@ -301,10 +303,10 @@ TEST(dtag_constructor_tests, direct_hash_construct) {
 
 TEST(dtag_constructor_tests, direct_alloc_construct) {
   counted_guard guard{};
-  frq::dtag<> tag{frq::construct_tag_alloc,
-                  frq::dtag<>::allocator_type{},
-                  guard.instance(),
-                  1};
+  frq::dtag<> const tag{frq::construct_tag_alloc,
+                        frq::dtag<>::allocator_type{},
+                        guard.instance(),
+                        1};
 
   EXPECT_EQ(1, counted::get_instances());
 }
@@ -321,7 +323,7 @@ TEST(dtag_constructor_tests, range_construct) {
   nodes.push_back(frq::make_dtag_node<int>(
       std::allocator<frq::dtag_node>{}, custom_hash_compare{true}, 1));
 
-  frq::dtag<> tag{std::begin(nodes), std::end(nodes)};
+  frq::dtag<> const tag{std::begin(nodes), std::end(nodes)};
 
   EXPECT_EQ(1, counted::get_instances());
   EXPECT_EQ(2U, tag.values().size());
@@ -399,34 +401,34 @@ TEST_F(dtag_view_tests, first_view_root) {
 }
 
 TEST_F(dtag_view_tests, last_view_key) {
-  test_dview view{tag_, 1};
+  test_dview const view{tag_, 1};
 
   auto expected = std::hash<int>{}(2);
   EXPECT_EQ(expected, view.key().hash());
 }
 
 TEST_F(dtag_view_tests, last_view_sub) {
-  test_dview view{tag_, 1};
+  test_dview const view{tag_, 1};
 
   auto [value1, value2] = view.sub().pack<float, int>();
   EXPECT_EQ(2, value2);
 }
 
 TEST_F(dtag_view_tests, last_view_next) {
-  test_dview view{tag_, 1};
+  test_dview const view{tag_, 1};
 
   auto expected = std::hash<int>{}(2);
   EXPECT_EQ(expected, view.next().key().hash());
 }
 
 TEST_F(dtag_view_tests, last_view_last) {
-  test_dview view{tag_, 1};
+  test_dview const view{tag_, 1};
 
   EXPECT_TRUE(view.last());
 }
 
 TEST_F(dtag_view_tests, last_view_root) {
-  test_dview view{tag_, 1};
+  test_dview const view{tag_, 1};
 
   EXPECT_FALSE(view.root());
 }
@@ -439,7 +441,7 @@ static_assert(!frq::tag_view_traits<test_dview>::is_static);
 static_assert(!frq::tag_view_traits<test_dview>::is_last);
 
 TEST(stag_stream_tests, format) {
-  frq::stag<2, int, int> tag{frq::construct_tag_default, 1, 2};
+  frq::stag<2, int, int> const tag{frq::construct_tag_default, 1, 2};
 
   std::stringstream stream;
   stream << tag;
@@ -448,7 +450,7 @@ TEST(stag_stream_tests, format) {
 }
 
 TEST(dtag_stream_tests, format) {
-  frq::dtag<> tag{frq::construct_tag_default, 1, 2};
+  frq::dtag<> const tag{frq::construct_tag_default, 1, 2};
 
   std::stringstream stream;
   stream << tag;

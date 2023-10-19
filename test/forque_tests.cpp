@@ -6,6 +6,8 @@
 
 #include <string>
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)
+
 using item_type = float;
 
 using reservation_type = frq::reservation<item_type>;
@@ -33,7 +35,7 @@ inline constexpr bool is_task_v = is_task<Ty>::value;
 
 template<typename Ty>
 concept wrap_callable = requires(Ty t) {
-  {std::forward<Ty>(t)()};
+  { std::forward<Ty>(t)() };
 };
 
 template<frq::taglike Tag, typename Tag::size_type Size>
@@ -56,11 +58,10 @@ public:
   using queue_type = Queue;
   using tag_type = Tag;
 
-public:
   template<typename Fn, typename... Args>
-  frq::task<> push(Fn&& wrapped,
-                   item_type const& value,
-                   Args&&... args) requires(wrap_callable<Fn>) {
+  frq::task<> push(Fn&& wrapped, item_type const& value, Args&&... args)
+    requires(wrap_callable<Fn>)
+  {
     using sub_tag_type = Sub<tag_type, sizeof...(Args)>;
 
     auto reservation = co_await queue_.reserve(
@@ -86,9 +87,9 @@ public:
   }
 
   template<typename Fn, typename... Args>
-  void push_sync(Fn&& wrapped,
-                 item_type value,
-                 Args&&... args) requires(wrap_callable<Fn>) {
+  void push_sync(Fn&& wrapped, item_type value, Args&&... args)
+    requires(wrap_callable<Fn>)
+  {
     frq::sync_wait(
         push(std::forward<Fn>(wrapped), value, std::forward<Args>(args)...));
   }
@@ -99,7 +100,9 @@ public:
   }
 
   template<typename Fn>
-  frq::task<item_type> pop(Fn&& wrapped) requires(wrap_callable<Fn>) {
+  frq::task<item_type> pop(Fn&& wrapped)
+    requires(wrap_callable<Fn>)
+  {
     auto retainment = co_await queue_.get();
     auto result = retainment.value();
 
@@ -119,7 +122,9 @@ public:
   }
 
   template<typename Fn>
-  item_type pop_sync(Fn&& wrapped) requires(wrap_callable<Fn>) {
+  item_type pop_sync(Fn&& wrapped)
+    requires(wrap_callable<Fn>)
+  {
     return frq::sync_wait(pop(std::forward<Fn>(wrapped)));
   }
 
@@ -249,3 +254,5 @@ TEST_F(static_queue_tests, serving_after_finalize) {
 TEST_F(dynamic_queue_tests, serving_after_finalize) {
   serving_after_finalize_impl(impl_);
 }
+
+// NOLINTEND(cppcoreguidelines-avoid-capturing-lambda-coroutines,cppcoreguidelines-avoid-reference-coroutine-parameters)
