@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.26)
 
 function(AddClangTidy target)
   if(CMAKE_CXX_CLANG_TIDY)
-    set(CLANG_TIDY_PATH "${CMAKE_CXX_CLANG_TIDY}")
+    set(CLANG_TIDY_PATH ${CMAKE_CXX_CLANG_TIDY})
   else()
     find_program(CLANG_TIDY_PATH clang-tidy REQUIRED)
   endif()
