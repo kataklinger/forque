@@ -1,6 +1,6 @@
 
-#include "../inc/runque.hpp"
-#include "../inc/sync_wait.hpp"
+#include "runque.hpp"
+#include "sync_wait.hpp"
 
 #include "gtest/gtest.h"
 

@@ -1,6 +1,6 @@
 
-#include "../inc/tag.hpp"
-#include "../inc/tag_stream.hpp"
+#include "tag.hpp"
+#include "tag_stream.hpp"
 
 #include "counted.hpp"
 

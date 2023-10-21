@@ -1,6 +1,6 @@
 
-#include "../inc/forque.hpp"
-#include "../inc/sync_wait.hpp"
+#include "forque.hpp"
+#include "sync_wait.hpp"
 
 #include "gtest/gtest.h"
 

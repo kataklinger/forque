@@ -1,7 +1,7 @@
 
-#include "../inc/mutex.hpp"
-#include "../inc/sync_wait.hpp"
-#include "../inc/task.hpp"
+#include "mutex.hpp"
+#include "sync_wait.hpp"
+#include "task.hpp"
 
 #include "gtest/gtest.h"
 
