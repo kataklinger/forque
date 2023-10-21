@@ -12,8 +12,10 @@ add_library(forque STATIC mutex.cpp)
 
 target_link_libraries(forque PRIVATE warnings)
 
-target_include_directories(forque PUBLIC
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>)
+target_include_directories(
+  forque PUBLIC
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>)
 
 list(APPEND HEADER_LIST
     forque.hpp
